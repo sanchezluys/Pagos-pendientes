@@ -263,9 +263,7 @@ fun MainPaymentsScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CircleShape,
-                modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .testTag("add_payment_fab")
+                modifier = Modifier.testTag("add_payment_fab")
             )
         }
     ) { innerPadding ->

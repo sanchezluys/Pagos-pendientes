@@ -9,9 +9,10 @@ import java.util.Locale
 
 object DateFormats {
 
-    private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("es", "ES"))
-    private val timeFormat = SimpleDateFormat("hh:mm a", Locale("es", "ES"))
-    private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale("es", "ES"))
+    private val esLocale = Locale.forLanguageTag("es-ES")
+    private val dateFormat = SimpleDateFormat("dd MMM yyyy", esLocale)
+    private val timeFormat = SimpleDateFormat("hh:mm a", esLocale)
+    private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", esLocale)
 
     fun formatDate(millis: Long): String {
         return dateFormat.format(Date(millis))

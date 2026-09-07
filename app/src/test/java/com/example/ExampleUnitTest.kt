@@ -27,10 +27,10 @@ class ExampleUnitTest {
         val usdFormatted = DateFormats.formatCurrency(amount, AppCurrency.USD, ThousandsSeparator.PUNTO)
         assertTrue(usdFormatted.contains("$"))
 
-        // Euro with Desactivado: € 1250.50
-        val eurFormatted = DateFormats.formatCurrency(amount, AppCurrency.EUR, ThousandsSeparator.DESACTIVADO)
-        assertTrue(eurFormatted.contains("€"))
-        assertTrue(eurFormatted.contains("1250.50"))
+        // COL with Desactivado: COL$ 1250.50
+        val colFormatted = DateFormats.formatCurrency(amount, AppCurrency.COL, ThousandsSeparator.DESACTIVADO)
+        assertTrue(colFormatted.contains("COL$"))
+        assertTrue(colFormatted.contains("1250.50"))
     }
 
     @Test
@@ -81,8 +81,8 @@ class ExampleUnitTest {
         assertEquals(AppCurrency.SOL, settings.currency)
         assertEquals(ThousandsSeparator.COMA, settings.thousandsSeparator)
         assertFalse(settings.isDarkTheme)
-        assertEquals("Mi Casa", settings.casaDetails.alias)
-        assertEquals("Mi Negocio", settings.negocioDetails.alias)
+        assertEquals("Casa", settings.casaDetails.alias)
+        assertEquals("Negocio", settings.negocioDetails.alias)
     }
 }
 

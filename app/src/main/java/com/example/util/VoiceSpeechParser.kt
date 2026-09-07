@@ -47,8 +47,8 @@ object VoiceSpeechParser {
             else -> null
         }
 
-        // Extract reference code if words like "referencia", "codigo", "código", "recibo" are followed by digits
-        val refRegex = Regex("""(?:referencia|código|codigo|recibo|numero|número)\s*[:#]?\s*([A-Za-z0-9-]+)""")
+        // Extract reference code if words like "referencia", "codigo", "código", "número" are followed by digits/code
+        val refRegex = Regex("""(?:referencia|código|codigo|número|numero)\s*[:#]?\s*([A-Za-z0-9-]+)""")
         val refMatch = refRegex.find(lower)
         val suggestedCode = refMatch?.groupValues?.get(1)?.uppercase()
 
