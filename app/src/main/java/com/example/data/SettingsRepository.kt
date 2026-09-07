@@ -38,11 +38,17 @@ class SettingsRepository(context: Context) {
         )
 
         val isDarkTheme = prefs.getBoolean(KEY_DARK_THEME, false)
+        val showDecimals = prefs.getBoolean(KEY_SHOW_DECIMALS, true)
+        val enableCasa = prefs.getBoolean(KEY_ENABLE_CASA, true)
+        val enableNegocio = prefs.getBoolean(KEY_ENABLE_NEGOCIO, true)
 
         return AppSettings(
             currency = currency,
             thousandsSeparator = separator,
             isDarkTheme = isDarkTheme,
+            showDecimals = showDecimals,
+            enableCasa = enableCasa,
+            enableNegocio = enableNegocio,
             casaDetails = casaDetails,
             negocioDetails = negocioDetails
         )
@@ -51,6 +57,25 @@ class SettingsRepository(context: Context) {
     fun updateDarkTheme(isDark: Boolean) {
         prefs.edit().putBoolean(KEY_DARK_THEME, isDark).apply()
         _settings.value = _settings.value.copy(isDarkTheme = isDark)
+    }
+
+    fun updateShowDecimals(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_DECIMALS, enabled).apply()
+        _settings.value = _settings.value.copy(showDecimals = enabled)
+    }
+
+    fun updateEnableCasa(enabled: Boolean) {
+        // Prevent disabling both
+        if (!enabled && !_settings.value.enableNegocio) return
+        prefs.edit().putBoolean(KEY_ENABLE_CASA, enabled).apply()
+        _settings.value = _settings.value.copy(enableCasa = enabled)
+    }
+
+    fun updateEnableNegocio(enabled: Boolean) {
+        // Prevent disabling both
+        if (!enabled && !_settings.value.enableCasa) return
+        prefs.edit().putBoolean(KEY_ENABLE_NEGOCIO, enabled).apply()
+        _settings.value = _settings.value.copy(enableNegocio = enabled)
     }
 
     fun updateCurrency(currency: AppCurrency) {
@@ -87,6 +112,9 @@ class SettingsRepository(context: Context) {
         private const val KEY_CURRENCY = "pref_currency"
         private const val KEY_SEPARATOR = "pref_thousands_separator"
         private const val KEY_DARK_THEME = "pref_dark_theme"
+        private const val KEY_SHOW_DECIMALS = "pref_show_decimals"
+        private const val KEY_ENABLE_CASA = "pref_enable_casa"
+        private const val KEY_ENABLE_NEGOCIO = "pref_enable_negocio"
 
         private const val KEY_CASA_ALIAS = "pref_casa_alias"
         private const val KEY_CASA_ADDRESS = "pref_casa_address"

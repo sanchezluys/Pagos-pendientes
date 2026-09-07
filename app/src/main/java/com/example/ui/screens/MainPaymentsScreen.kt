@@ -273,6 +273,22 @@ fun MainPaymentsScreen(
                 .padding(innerPadding)
         ) {
             // Place Selector Capsule Navigation: Casa, Negocio, Todos
+            val places = remember(appSettings.enableCasa, appSettings.enableNegocio) {
+                if (appSettings.enableCasa && appSettings.enableNegocio) {
+                    listOf("Todos", "Casa", "Negocio")
+                } else if (appSettings.enableCasa) {
+                    listOf("Casa")
+                } else {
+                    listOf("Negocio")
+                }
+            }
+
+            LaunchedEffect(places) {
+                if (!places.contains(selectedPlace)) {
+                    viewModel.setPlace(places.first())
+                }
+            }
+
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -286,7 +302,6 @@ fun MainPaymentsScreen(
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    val places = listOf("Todos", "Casa", "Negocio")
                     places.forEach { place ->
                         val isSelected = selectedPlace.equals(place, ignoreCase = true)
                         Surface(
@@ -638,19 +653,6 @@ fun MainPaymentsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
-
-                        if (selectedTab == StatusTab.PENDING && searchQuery.isBlank()) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedButton(
-                                onClick = { showNewReminderDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.testTag("empty_state_add_button")
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Registrar Recordatorio")
-                            }
-                        }
                     }
                 }
             } else {
@@ -674,13 +676,14 @@ fun MainPaymentsScreen(
         }
     }
 
-    // New Reminder Dialog
+    // New Reminder Dialog (Supports Occasional & Recurring)
     if (showNewReminderDialog) {
         NewReminderDialog(
             categories = activeCategories,
             initialPlace = if (selectedPlace == "Negocio") "Negocio" else "Casa",
+            appSettings = appSettings,
             onDismiss = { showNewReminderDialog = false },
-            onSave = { title, category, place, approxAmount, paymentCode, dueDateMillis, alertTimeMillis ->
+            onSaveOccasional = { title, category, place, approxAmount, paymentCode, dueDateMillis, alertTimeMillis ->
                 viewModel.addPayment(
                     title = title,
                     category = category,
@@ -689,6 +692,22 @@ fun MainPaymentsScreen(
                     paymentCode = paymentCode,
                     dueDateMillis = dueDateMillis,
                     alertTimeMillis = alertTimeMillis,
+                    context = context
+                )
+                showNewReminderDialog = false
+            },
+            onSaveRecurring = { title, category, place, approxAmount, paymentCode, dayOfMonth, startDateMillis, endDateMillis, alertHour, alertMinute ->
+                viewModel.addRecurringPayments(
+                    title = title,
+                    category = category,
+                    place = place,
+                    approxAmount = approxAmount,
+                    paymentCode = paymentCode,
+                    dayOfMonth = dayOfMonth,
+                    startDateMillis = startDateMillis,
+                    endDateMillis = endDateMillis,
+                    alertHour = alertHour,
+                    alertMinute = alertMinute,
                     context = context
                 )
                 showNewReminderDialog = false
@@ -746,6 +765,9 @@ fun MainPaymentsScreen(
             onCurrencySelected = { viewModel.updateCurrency(it) },
             onSeparatorSelected = { viewModel.updateThousandsSeparator(it) },
             onToggleDarkTheme = { viewModel.updateDarkTheme(it) },
+            onToggleShowDecimals = { viewModel.updateShowDecimals(it) },
+            onToggleEnableCasa = { viewModel.updateEnableCasa(it) },
+            onToggleEnableNegocio = { viewModel.updateEnableNegocio(it) },
             onSaveCasaDetails = { viewModel.updateCasaDetails(it) },
             onSaveNegocioDetails = { viewModel.updateNegocioDetails(it) },
             onOpenCategoryManager = {

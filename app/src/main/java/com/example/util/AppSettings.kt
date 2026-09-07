@@ -27,6 +27,9 @@ data class AppSettings(
     val currency: AppCurrency = AppCurrency.SOL,
     val thousandsSeparator: ThousandsSeparator = ThousandsSeparator.COMA,
     val isDarkTheme: Boolean = false,
+    val showDecimals: Boolean = true,
+    val enableCasa: Boolean = true,
+    val enableNegocio: Boolean = true,
     val casaDetails: PlaceDetails = PlaceDetails(alias = "Casa"),
     val negocioDetails: PlaceDetails = PlaceDetails(alias = "Negocio")
 )

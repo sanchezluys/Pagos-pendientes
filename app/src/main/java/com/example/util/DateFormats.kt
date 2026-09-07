@@ -29,7 +29,8 @@ object DateFormats {
     fun formatCurrency(
         amount: Double,
         currency: AppCurrency = AppCurrency.SOL,
-        separator: ThousandsSeparator = ThousandsSeparator.COMA
+        separator: ThousandsSeparator = ThousandsSeparator.COMA,
+        showDecimals: Boolean = true
     ): String {
         return try {
             val symbols = DecimalFormatSymbols(Locale.US)
@@ -38,16 +39,16 @@ object DateFormats {
                 ThousandsSeparator.PUNTO -> {
                     symbols.groupingSeparator = '.'
                     symbols.decimalSeparator = ','
-                    pattern = "#,##0.00"
+                    pattern = if (showDecimals) "#,##0.00" else "#,##0"
                 }
                 ThousandsSeparator.COMA -> {
                     symbols.groupingSeparator = ','
                     symbols.decimalSeparator = '.'
-                    pattern = "#,##0.00"
+                    pattern = if (showDecimals) "#,##0.00" else "#,##0"
                 }
                 ThousandsSeparator.DESACTIVADO -> {
                     symbols.decimalSeparator = '.'
-                    pattern = "0.00"
+                    pattern = if (showDecimals) "0.00" else "0"
                 }
             }
             val df = DecimalFormat(pattern, symbols).apply {
@@ -57,16 +58,17 @@ object DateFormats {
             }
             "${currency.symbol} ${df.format(amount)}"
         } catch (e: Exception) {
-            "${currency.symbol} ${String.format(Locale.US, "%.2f", amount)}"
+            val fmt = if (showDecimals) "%.2f" else "%.0f"
+            "${currency.symbol} ${String.format(Locale.US, fmt, amount)}"
         }
     }
 
     fun formatCurrency(amount: Double, settings: AppSettings): String {
-        return formatCurrency(amount, settings.currency, settings.thousandsSeparator)
+        return formatCurrency(amount, settings.currency, settings.thousandsSeparator, settings.showDecimals)
     }
 
     fun formatCurrency(amount: Double): String {
-        return formatCurrency(amount, AppCurrency.SOL, ThousandsSeparator.COMA)
+        return formatCurrency(amount, AppCurrency.SOL, ThousandsSeparator.COMA, true)
     }
 
     /**

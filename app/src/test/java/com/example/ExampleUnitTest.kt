@@ -81,8 +81,26 @@ class ExampleUnitTest {
         assertEquals(AppCurrency.SOL, settings.currency)
         assertEquals(ThousandsSeparator.COMA, settings.thousandsSeparator)
         assertFalse(settings.isDarkTheme)
+        assertTrue(settings.showDecimals)
+        assertTrue(settings.enableCasa)
+        assertTrue(settings.enableNegocio)
         assertEquals("Casa", settings.casaDetails.alias)
         assertEquals("Negocio", settings.negocioDetails.alias)
+    }
+
+    @Test
+    fun testCurrencyFormattingWithoutDecimals() {
+        val amount = 1250.75
+
+        // Con decimales
+        val withDecimals = DateFormats.formatCurrency(amount, AppCurrency.SOL, ThousandsSeparator.COMA, showDecimals = true)
+        assertTrue(withDecimals.contains(".75") || withDecimals.contains(",75"))
+
+        // Sin decimales
+        val withoutDecimals = DateFormats.formatCurrency(amount, AppCurrency.SOL, ThousandsSeparator.COMA, showDecimals = false)
+        assertFalse(withoutDecimals.contains(".75"))
+        assertFalse(withoutDecimals.contains(",75"))
+        assertTrue(withoutDecimals.contains("1,251") || withoutDecimals.contains("1.251"))
     }
 }
 

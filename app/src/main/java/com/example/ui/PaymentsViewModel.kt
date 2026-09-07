@@ -172,6 +172,80 @@ class PaymentsViewModel(
         }
     }
 
+    fun addRecurringPayments(
+        title: String,
+        category: String,
+        place: String,
+        approxAmount: Double,
+        paymentCode: String,
+        dayOfMonth: Int,
+        startDateMillis: Long,
+        endDateMillis: Long,
+        alertHour: Int,
+        alertMinute: Int,
+        context: Context
+    ) {
+        viewModelScope.launch {
+            val startCal = Calendar.getInstance().apply {
+                timeInMillis = startDateMillis
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val endCal = Calendar.getInstance().apply {
+                timeInMillis = endDateMillis
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+                set(Calendar.MILLISECOND, 999)
+            }
+
+            // Iterate month by month
+            val curr = Calendar.getInstance().apply {
+                timeInMillis = startCal.timeInMillis
+                set(Calendar.DAY_OF_MONTH, 1)
+            }
+
+            while (curr.before(endCal) || (curr.get(Calendar.YEAR) == endCal.get(Calendar.YEAR) && curr.get(Calendar.MONTH) == endCal.get(Calendar.MONTH))) {
+                val maxDayInMonth = curr.getActualMaximum(Calendar.DAY_OF_MONTH)
+                val targetDay = minOf(dayOfMonth, maxDayInMonth)
+
+                val dueCal = Calendar.getInstance().apply {
+                    set(curr.get(Calendar.YEAR), curr.get(Calendar.MONTH), targetDay, 23, 59, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }
+
+                // Check if this date falls within start and end range
+                if (dueCal.timeInMillis >= startCal.timeInMillis && dueCal.timeInMillis <= endCal.timeInMillis) {
+                    val alertCal = Calendar.getInstance().apply {
+                        set(curr.get(Calendar.YEAR), curr.get(Calendar.MONTH), targetDay, alertHour, alertMinute, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+
+                    val payment = PaymentReminder(
+                        title = title.trim(),
+                        category = category.trim(),
+                        place = place.trim(),
+                        approxAmount = approxAmount,
+                        paymentCode = paymentCode.trim(),
+                        dueDateMillis = dueCal.timeInMillis,
+                        alertTimeMillis = alertCal.timeInMillis,
+                        isPaid = false
+                    )
+
+                    val newId = repository.insertPayment(payment)
+                    if (alertCal.timeInMillis > System.currentTimeMillis()) {
+                        AlarmScheduler.scheduleAlarm(context, payment.copy(id = newId))
+                    }
+                }
+
+                // Move to next month
+                curr.add(Calendar.MONTH, 1)
+            }
+        }
+    }
+
     fun markAsPaid(
         payment: PaymentReminder,
         paidAmount: Double,
@@ -211,6 +285,24 @@ class PaymentsViewModel(
         viewModelScope.launch {
             repository.deletePayment(payment)
             AlarmScheduler.cancelAlarm(context, payment.id)
+        }
+    }
+
+    fun updateShowDecimals(enabled: Boolean) {
+        settingsRepository.updateShowDecimals(enabled)
+    }
+
+    fun updateEnableCasa(enabled: Boolean) {
+        settingsRepository.updateEnableCasa(enabled)
+        if (!enabled && selectedPlace.value.equals("Casa", ignoreCase = true)) {
+            selectedPlace.value = "Negocio"
+        }
+    }
+
+    fun updateEnableNegocio(enabled: Boolean) {
+        settingsRepository.updateEnableNegocio(enabled)
+        if (!enabled && selectedPlace.value.equals("Negocio", ignoreCase = true)) {
+            selectedPlace.value = "Casa"
         }
     }
 
