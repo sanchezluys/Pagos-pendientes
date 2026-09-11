@@ -2,7 +2,7 @@ package com.example.util
 
 enum class AppCurrency(val code: String, val displayName: String, val symbol: String) {
     USD(code = "USD", displayName = "Dólar estadounidense (USD)", symbol = "$"),
-    COL(code = "COL", displayName = "Peso colombiano (COL)", symbol = "COL$"),
+    COP(code = "COP", displayName = "Peso colombiano (COP)", symbol = "$"),
     SOL(code = "SOL", displayName = "Sol peruano (SOL)", symbol = "S/.")
 }
 

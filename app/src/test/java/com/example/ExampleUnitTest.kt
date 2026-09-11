@@ -27,10 +27,10 @@ class ExampleUnitTest {
         val usdFormatted = DateFormats.formatCurrency(amount, AppCurrency.USD, ThousandsSeparator.PUNTO)
         assertTrue(usdFormatted.contains("$"))
 
-        // COL with Desactivado: COL$ 1250.50
-        val colFormatted = DateFormats.formatCurrency(amount, AppCurrency.COL, ThousandsSeparator.DESACTIVADO)
-        assertTrue(colFormatted.contains("COL$"))
-        assertTrue(colFormatted.contains("1250.50"))
+        // COP with Desactivado: $ 1250.50
+        val copFormatted = DateFormats.formatCurrency(amount, AppCurrency.COP, ThousandsSeparator.DESACTIVADO)
+        assertTrue(copFormatted.contains("$"))
+        assertTrue(copFormatted.contains("1250.50"))
     }
 
     @Test

@@ -20,7 +20,12 @@ class SettingsRepository(context: Context) {
         val currencyCode = prefs.getString(KEY_CURRENCY, AppCurrency.SOL.code) ?: AppCurrency.SOL.code
         val separatorCode = prefs.getString(KEY_SEPARATOR, ThousandsSeparator.COMA.code) ?: ThousandsSeparator.COMA.code
 
-        val currency = AppCurrency.values().find { it.code.equals(currencyCode, ignoreCase = true) } ?: AppCurrency.SOL
+        val currency = when (currencyCode.uppercase()) {
+            "COL", "COP" -> AppCurrency.COP
+            "USD" -> AppCurrency.USD
+            "SOL" -> AppCurrency.SOL
+            else -> AppCurrency.values().find { it.code.equals(currencyCode, ignoreCase = true) } ?: AppCurrency.SOL
+        }
         val separator = ThousandsSeparator.values().find { it.code.equals(separatorCode, ignoreCase = true) } ?: ThousandsSeparator.COMA
 
         val casaDetails = PlaceDetails(

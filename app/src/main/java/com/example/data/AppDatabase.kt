@@ -37,23 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "pagos_database.db"
                 ).addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigration()
-                .addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        // Pre-populate default categories
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val dao = getInstance(context).paymentDao()
-                            val defaults = listOf(
-                                CategoryItem(name = "Servicios", isDefault = true, isActive = true),
-                                CategoryItem(name = "Deudas", isDefault = true, isActive = true),
-                                CategoryItem(name = "Créditos", isDefault = true, isActive = true),
-                                CategoryItem(name = "Impuestos", isDefault = true, isActive = true),
-                                CategoryItem(name = "Otros", isDefault = true, isActive = true)
-                            )
-                            defaults.forEach { dao.insertCategory(it) }
-                        }
-                    }
-                }).build()
+                .build()
                 INSTANCE = instance
                 instance
             }

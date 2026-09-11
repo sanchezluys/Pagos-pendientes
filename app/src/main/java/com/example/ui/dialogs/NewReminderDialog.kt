@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
@@ -168,7 +171,14 @@ fun NewReminderDialog(
 
     // 2. RECURRING PAYMENT STATE
     var recurrenceDayOfMonth by remember { mutableIntStateOf(todayCal.get(Calendar.DAY_OF_MONTH).coerceIn(1, 31)) }
+    var recurrenceDayText by remember { mutableStateOf(recurrenceDayOfMonth.toString()) }
     var fullYearPreset by remember { mutableStateOf(true) }
+
+    fun updateRecurrenceDay(day: Int) {
+        val clamped = day.coerceIn(1, 31)
+        recurrenceDayOfMonth = clamped
+        recurrenceDayText = clamped.toString()
+    }
 
     // Start Date (Defaults to today or start of month)
     var startYear by remember { mutableIntStateOf(todayCal.get(Calendar.YEAR)) }
@@ -550,7 +560,7 @@ fun NewReminderDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    categories.filter { it.isActive }.forEach { cat ->
+                    categories.filter { it.isActive }.distinctBy { it.name.trim().lowercase() }.forEach { cat ->
                         FilterChip(
                             selected = selectedCategory == cat.name,
                             onClick = { selectedCategory = cat.name },
@@ -565,36 +575,41 @@ fun NewReminderDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Amount & Reference Code
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = approxAmountText,
-                        onValueChange = { approxAmountText = it },
-                        label = { Text("Monto aprox.") },
-                        placeholder = { Text("0.00") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("new_payment_amount_input")
-                    )
+                // Amount (separate line)
+                OutlinedTextField(
+                    value = approxAmountText,
+                    onValueChange = { approxAmountText = it },
+                    label = { Text("Monto aprox. (${appSettings.currency.symbol})") },
+                    placeholder = { Text("0.00") },
+                    prefix = {
+                        Text(
+                            text = "${appSettings.currency.symbol} ",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("new_payment_amount_input")
+                )
 
-                    OutlinedTextField(
-                        value = paymentCode,
-                        onValueChange = { paymentCode = it },
-                        label = { Text("Código / Ref. de pago") },
-                        placeholder = { Text("Ej: 489201") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("new_payment_code_input")
-                    )
-                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Reference Code (separate line)
+                OutlinedTextField(
+                    value = paymentCode,
+                    onValueChange = { paymentCode = it },
+                    label = { Text("Código / Ref. de pago (opcional)") },
+                    placeholder = { Text("Ej: 489201") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("new_payment_code_input")
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -735,68 +750,163 @@ fun NewReminderDialog(
                         ) {
                             // 1. Día del mes
                             Column {
-                                Text(
-                                    text = "Día del mes que se repite el pago:",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Día de pago cada mes:",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    OutlinedButton(
+                                        onClick = {
+                                            val now = Calendar.getInstance()
+                                            DatePickerDialog(
+                                                context,
+                                                { _, _, _, d ->
+                                                    updateRecurrenceDay(d)
+                                                },
+                                                now.get(Calendar.YEAR),
+                                                now.get(Calendar.MONTH),
+                                                recurrenceDayOfMonth
+                                            ).show()
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Calendario", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    // Decrement button [-]
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .clickable {
+                                                val current = recurrenceDayText.toIntOrNull() ?: recurrenceDayOfMonth
+                                                updateRecurrenceDay(current - 1)
+                                            }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Remove,
+                                                contentDescription = "Restar día",
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    // Editable Day Text Field (allows typing 26 easily without premature clamp)
                                     OutlinedTextField(
-                                        value = if (recurrenceDayOfMonth > 0) recurrenceDayOfMonth.toString() else "",
+                                        value = recurrenceDayText,
                                         onValueChange = { input ->
-                                            val num = input.filter { it.isDigit() }.toIntOrNull()
+                                            val digits = input.filter { it.isDigit() }.take(2)
+                                            recurrenceDayText = digits
+                                            val num = digits.toIntOrNull()
                                             if (num != null) {
-                                                recurrenceDayOfMonth = num.coerceIn(1, 31)
-                                            } else if (input.isEmpty()) {
-                                                recurrenceDayOfMonth = 1
+                                                if (num > 31) {
+                                                    updateRecurrenceDay(31)
+                                                } else if (num >= 1) {
+                                                    recurrenceDayOfMonth = num
+                                                }
                                             }
                                         },
-                                        label = { Text("Día (1 - 31)") },
+                                        label = { Text("Día") },
+                                        placeholder = { Text("1-31") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
                                         shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.width(120.dp)
+                                        modifier = Modifier
+                                            .width(88.dp)
+                                            .testTag("recurrence_day_input")
                                     )
+
+                                    // Increment button [+]
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .clickable {
+                                                val current = recurrenceDayText.toIntOrNull() ?: recurrenceDayOfMonth
+                                                updateRecurrenceDay(current + 1)
+                                            }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = "Sumar día",
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Vence cada día $recurrenceDayOfMonth de cada mes",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.SemiBold,
+                                            text = "Día $recurrenceDayOfMonth de cada mes",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
-                                            text = "(Si el mes tiene menos días, vence el último día)",
+                                            text = if (recurrenceDayOfMonth in 29..31) "(En meses más cortos, vence el último día)" else "(Se repetirá en esa fecha)",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
 
-                                // Quick day chips
-                                Row(
-                                    modifier = Modifier.padding(top = 6.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                // Quick Day Chips including 26
+                                Text(
+                                    text = "Días habituales:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    listOf(1, 5, 15, 20, 28, 30).forEach { dayOption ->
+                                    listOf(1, 5, 10, 15, 20, 25, 26, 28, 30, 31).forEach { dayOption ->
+                                        val isSelected = recurrenceDayOfMonth == dayOption
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
-                                            color = if (recurrenceDayOfMonth == dayOption) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                            ),
                                             modifier = Modifier
-                                                .clickable { recurrenceDayOfMonth = dayOption }
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable { updateRecurrenceDay(dayOption) }
                                         ) {
                                             Text(
-                                                text = "Día $dayOption",
+                                                text = if (dayOption == 31) "31 (Fin de mes)" else "$dayOption",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (recurrenceDayOfMonth == dayOption) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                                             )
                                         }
                                     }
@@ -1068,13 +1178,14 @@ fun NewReminderDialog(
                                     return@Button
                                 }
 
+                                val finalRecurrenceDay = recurrenceDayText.toIntOrNull()?.coerceIn(1, 31) ?: recurrenceDayOfMonth
                                 onSaveRecurring(
                                     title,
                                     selectedCategory,
                                     selectedPlace,
                                     parsedAmount,
                                     paymentCode,
-                                    recurrenceDayOfMonth,
+                                    finalRecurrenceDay,
                                     startDateMillis,
                                     endDateMillis,
                                     alertHour,

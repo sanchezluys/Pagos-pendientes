@@ -148,10 +148,16 @@ fun CategoryManagerDialog(
 
                     Button(
                         onClick = {
-                            if (newCategoryName.isNotBlank()) {
-                                onAddCategory(newCategoryName.trim())
-                                Toast.makeText(context, "Categoría '${newCategoryName.trim()}' agregada", Toast.LENGTH_SHORT).show()
-                                newCategoryName = ""
+                            val trimmed = newCategoryName.trim()
+                            if (trimmed.isNotBlank()) {
+                                val alreadyExists = categories.any { it.name.trim().equals(trimmed, ignoreCase = true) }
+                                if (alreadyExists) {
+                                    Toast.makeText(context, "La categoría '$trimmed' ya existe", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    onAddCategory(trimmed)
+                                    Toast.makeText(context, "Categoría '$trimmed' agregada", Toast.LENGTH_SHORT).show()
+                                    newCategoryName = ""
+                                }
                             }
                         },
                         shape = RoundedCornerShape(12.dp),

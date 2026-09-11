@@ -30,6 +30,12 @@ interface PaymentDao {
     suspend fun deletePayment(payment: PaymentReminder)
 
     @Query("SELECT * FROM categories ORDER BY id ASC")
+    suspend fun getAllCategoriesList(): List<CategoryItem>
+
+    @Query("SELECT * FROM categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name)) LIMIT 1")
+    suspend fun getCategoryByName(name: String): CategoryItem?
+
+    @Query("SELECT * FROM categories ORDER BY id ASC")
     fun getAllCategories(): Flow<List<CategoryItem>>
 
     @Query("SELECT * FROM categories WHERE isActive = 1 ORDER BY id ASC")
