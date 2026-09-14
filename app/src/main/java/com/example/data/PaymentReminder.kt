@@ -11,7 +11,7 @@ data class PaymentReminder(
     val category: String,
     val place: String, // e.g., "Casa", "Negocio"
     val approxAmount: Double,
-    val paymentCode: String, // Código / número de pago o referencia
+    val paymentCode: String = "", // Código / número de pago o referencia
     val dueDateMillis: Long,
     val alertTimeMillis: Long, // Alarm time in millis (default 8:00 AM on due date)
     val isPaid: Boolean = false,
@@ -19,5 +19,7 @@ data class PaymentReminder(
     val paidDateMillis: Long? = null,
     val receiptPhotoUri: String? = null,
     val note: String? = null,
-    val createdAtMillis: Long = System.currentTimeMillis()
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val iconName: String? = null,
+    val colorHex: String? = null
 )

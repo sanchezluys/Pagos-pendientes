@@ -1,23 +1,17 @@
 package com.example.ui.dialogs
 
-import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.content.Intent
-import android.speech.RecognizerIntent
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,11 +29,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.Close
@@ -67,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -79,9 +75,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.data.CategoryItem
 import com.example.util.AppSettings
 import com.example.util.DateFormats
-import com.example.util.VoiceSpeechParser
+import com.example.util.PaymentVisuals
 import java.util.Calendar
-import java.util.Locale
 
 enum class PaymentFrequencyType {
     OCCASIONAL,
@@ -102,7 +97,9 @@ fun NewReminderDialog(
         approxAmount: Double,
         paymentCode: String,
         dueDateMillis: Long,
-        alertTimeMillis: Long
+        alertTimeMillis: Long,
+        iconName: String?,
+        colorHex: String?
     ) -> Unit,
     onSaveRecurring: (
         title: String,
@@ -114,7 +111,9 @@ fun NewReminderDialog(
         startDateMillis: Long,
         endDateMillis: Long,
         alertHour: Int,
-        alertMinute: Int
+        alertMinute: Int,
+        iconName: String?,
+        colorHex: String?
     ) -> Unit,
     onOpenCategoryManager: () -> Unit
 ) {
@@ -138,10 +137,14 @@ fun NewReminderDialog(
         mutableStateOf(initial)
     }
 
-    // Default category: first active or "Servicios"
+    // Category
     var selectedCategory by remember {
         mutableStateOf(categories.firstOrNull { it.isActive }?.name ?: categories.firstOrNull()?.name ?: "Servicios")
     }
+
+    // Custom Icon and Color
+    var selectedIconId by remember { mutableStateOf("ReceiptLong") }
+    var selectedColorHex by remember { mutableStateOf("#6750A4") }
 
     // Reference today
     val todayCal = Calendar.getInstance()
@@ -174,13 +177,24 @@ fun NewReminderDialog(
     var recurrenceDayText by remember { mutableStateOf(recurrenceDayOfMonth.toString()) }
     var fullYearPreset by remember { mutableStateOf(true) }
 
+    fun commitDay() {
+        val num = recurrenceDayText.toIntOrNull()
+        val clamped = when {
+            num == null || num < 1 -> 1
+            num > 31 -> 31
+            else -> num
+        }
+        recurrenceDayOfMonth = clamped
+        recurrenceDayText = clamped.toString()
+    }
+
     fun updateRecurrenceDay(day: Int) {
         val clamped = day.coerceIn(1, 31)
         recurrenceDayOfMonth = clamped
         recurrenceDayText = clamped.toString()
     }
 
-    // Start Date (Defaults to today or start of month)
+    // Start Date (Defaults to today)
     var startYear by remember { mutableIntStateOf(todayCal.get(Calendar.YEAR)) }
     var startMonth by remember { mutableIntStateOf(todayCal.get(Calendar.MONTH)) }
     var startDay by remember { mutableIntStateOf(todayCal.get(Calendar.DAY_OF_MONTH)) }
@@ -235,59 +249,6 @@ fun NewReminderDialog(
         }
     }
 
-    // Voice recognition launcher
-    val speechLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val firstSpoken = spoken?.firstOrNull()
-            if (!firstSpoken.isNullOrBlank()) {
-                val parsed = VoiceSpeechParser.parse(firstSpoken)
-                title = parsed.suggestedTitle
-                if (parsed.suggestedAmount != null) {
-                    approxAmountText = String.format(Locale.US, "%.2f", parsed.suggestedAmount)
-                }
-                if (!parsed.suggestedCode.isNullOrBlank()) {
-                    paymentCode = parsed.suggestedCode
-                }
-                if (parsed.suggestedPlace != null) {
-                    val placeMatch = if (parsed.suggestedPlace.equals("Negocio", true) && appSettings.enableNegocio) {
-                        "Negocio"
-                    } else if (appSettings.enableCasa) {
-                        "Casa"
-                    } else {
-                        "Negocio"
-                    }
-                    selectedPlace = placeMatch
-                }
-                if (parsed.suggestedCategory != null) {
-                    val match = categories.find { it.name.equals(parsed.suggestedCategory, ignoreCase = true) }
-                    if (match != null) {
-                        selectedCategory = match.name
-                    }
-                }
-                Toast.makeText(context, "Audio procesado con éxito", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    fun startVoiceDictation() {
-        try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(
-                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                )
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Di los datos: nombre, monto, referencia y lugar...")
-            }
-            speechLauncher.launch(intent)
-        } catch (e: Exception) {
-            Toast.makeText(context, "Reconocimiento de voz no disponible", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -316,7 +277,8 @@ fun NewReminderDialog(
                         Text(
                             text = "Nuevo Recordatorio",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Configura pagos ocasionales o recurrentes",
@@ -331,52 +293,9 @@ fun NewReminderDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
-                            contentDescription = "Cerrar"
+                            contentDescription = "Cerrar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Voice Dictation Action Banner
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { startVoiceDictation() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Mic,
-                                contentDescription = "Dictar por voz",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Dictar recordatorio por voz",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "Ej: 'Luz casa 120 soles ref 4829'",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                            )
-                        }
                     }
                 }
 
@@ -531,7 +450,136 @@ fun NewReminderDialog(
                         .testTag("new_payment_title_input")
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ICON & COLOR SELECTOR
+                val activeColor = PaymentVisuals.getColor(selectedColorHex, MaterialTheme.colorScheme.primary)
+                val activeIcon = PaymentVisuals.getIcon(selectedIconId, selectedCategory)
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "ÍCONO Y COLOR",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            // Preview Badge
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = activeColor.copy(alpha = 0.15f),
+                                border = BorderStroke(1.5.dp, activeColor),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = activeIcon,
+                                        contentDescription = null,
+                                        tint = activeColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Color Row
+                        Text(
+                            text = "Color:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PaymentVisuals.COLORS.forEach { colorOpt ->
+                                val isSelected = selectedColorHex.equals(colorOpt.hex, ignoreCase = true)
+                                Surface(
+                                    shape = CircleShape,
+                                    color = colorOpt.color,
+                                    border = if (isSelected) BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null,
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .clickable { selectedColorHex = colorOpt.hex }
+                                ) {
+                                    if (isSelected) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = colorOpt.name,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Icon Selector
+                        Text(
+                            text = "Ícono:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PaymentVisuals.ICONS.forEach { iconOpt ->
+                                val isSelected = selectedIconId == iconOpt.id
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) activeColor else MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isSelected) activeColor else MaterialTheme.colorScheme.outlineVariant
+                                    ),
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { selectedIconId = iconOpt.id }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = iconOpt.icon,
+                                            contentDescription = iconOpt.name,
+                                            tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Category Selection
                 Row(
@@ -542,7 +590,8 @@ fun NewReminderDialog(
                     Text(
                         text = "Categoría",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "+ Nueva categoría",
@@ -625,170 +674,152 @@ fun NewReminderDialog(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        // Due Date Picker (Future date restriction)
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable {
-                                    val dpd = DatePickerDialog(
-                                        context,
-                                        { _, y, m, d ->
-                                            dueYear = y
-                                            dueMonth = m
-                                            dueDay = d
-                                        },
-                                        dueYear,
-                                        dueMonth,
-                                        dueDay
-                                    )
-                                    // Restrict to future / today
-                                    dpd.datePicker.minDate = System.currentTimeMillis() - 60000
-                                    dpd.show()
-                                }
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text(
-                                    text = "Fecha límite (a futuro)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            // Date Picker
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        DatePickerDialog(
+                                            context,
+                                            { _, y, m, d ->
+                                                dueYear = y
+                                                dueMonth = m
+                                                dueDay = d
+                                            },
+                                            dueYear,
+                                            dueMonth,
+                                            dueDay
+                                        ).show()
+                                    }
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.CalendarMonth,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = DateFormats.formatDate(calculatedDueDateMillis),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Fecha de vencimiento",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = DateFormats.formatDate(calculatedDueDateMillis),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
-                            }
-                        }
-
-                        // Alert Time Button
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable {
-                                    TimePickerDialog(
-                                        context,
-                                        { _, h, m ->
-                                            alertHour = h
-                                            alertMinute = m
-                                        },
-                                        alertHour,
-                                        alertMinute,
-                                        false
-                                    ).show()
-                                }
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
                                 Text(
-                                    text = "Hora alarma (08:00 AM)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    text = "Cambiar",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Time Picker
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        TimePickerDialog(
+                                            context,
+                                            { _, hour, minute ->
+                                                alertHour = hour
+                                                alertMinute = minute
+                                            },
+                                            alertHour,
+                                            alertMinute,
+                                            true
+                                        ).show()
+                                    }
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.Alarm,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.secondary
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = DateFormats.formatTime(calculatedAlertTimeMillis),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Hora de la alarma",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = DateFormats.formatTime(calculatedAlertTimeMillis),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
+                                Text(
+                                    text = "Cambiar",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
-
-                    Text(
-                        text = "* Pago único. La fecha debe ser igual o posterior a la fecha actual.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp, start = 4.dp)
-                    )
                 } else {
-                    // RECURRENTE: Día del mes + Período de repetición (de tal fecha a tal fecha / todo el año)
+                    // RECURRENTE: Día fijo del mes + Rango de meses
                     Text(
-                        text = "CONFIGURACIÓN DE RECURRENCIA",
+                        text = "PROGRAMACIÓN DE PAGOS MENSUALES",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // 1. Día del mes
+                            // 1. Selector del día de pago del mes
                             Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Día de pago cada mes:",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    OutlinedButton(
-                                        onClick = {
-                                            val now = Calendar.getInstance()
-                                            DatePickerDialog(
-                                                context,
-                                                { _, _, _, d ->
-                                                    updateRecurrenceDay(d)
-                                                },
-                                                now.get(Calendar.YEAR),
-                                                now.get(Calendar.MONTH),
-                                                recurrenceDayOfMonth
-                                            ).show()
-                                        },
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                        modifier = Modifier.height(32.dp)
-                                    ) {
-                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(14.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Calendario", style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-
+                                Text(
+                                    text = "Día límite de pago cada mes",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Row(
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     // Decrement button [-]
                                     Surface(
@@ -812,19 +843,15 @@ fun NewReminderDialog(
                                         }
                                     }
 
-                                    // Editable Day Text Field (allows typing 26 easily without premature clamp)
+                                    // Editable Day Text Field (validates on blur / focus loss)
                                     OutlinedTextField(
                                         value = recurrenceDayText,
                                         onValueChange = { input ->
                                             val digits = input.filter { it.isDigit() }.take(2)
                                             recurrenceDayText = digits
                                             val num = digits.toIntOrNull()
-                                            if (num != null) {
-                                                if (num > 31) {
-                                                    updateRecurrenceDay(31)
-                                                } else if (num >= 1) {
-                                                    recurrenceDayOfMonth = num
-                                                }
+                                            if (num != null && num in 1..31) {
+                                                recurrenceDayOfMonth = num
                                             }
                                         },
                                         label = { Text("Día") },
@@ -834,6 +861,11 @@ fun NewReminderDialog(
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier
                                             .width(88.dp)
+                                            .onFocusChanged { focusState ->
+                                                if (!focusState.isFocused) {
+                                                    commitDay()
+                                                }
+                                            }
                                             .testTag("recurrence_day_input")
                                     )
 
@@ -919,28 +951,24 @@ fun NewReminderDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column {
                                     Text(
-                                        text = "Repetir durante todo el año actual",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        text = "Programar resto del año",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = if (fullYearPreset) "Desde hoy hasta el 31 de diciembre" else "Rango de fechas personalizado",
+                                        text = "Hasta diciembre de este año",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                                 Switch(
                                     checked = fullYearPreset,
-                                    onCheckedChange = { isFullYear ->
-                                        fullYearPreset = isFullYear
-                                        if (isFullYear) {
-                                            startYear = todayCal.get(Calendar.YEAR)
-                                            startMonth = todayCal.get(Calendar.MONTH)
-                                            startDay = todayCal.get(Calendar.DAY_OF_MONTH)
-
+                                    onCheckedChange = { checked ->
+                                        fullYearPreset = checked
+                                        if (checked) {
                                             endYear = todayCal.get(Calendar.YEAR)
                                             endMonth = Calendar.DECEMBER
                                             endDay = 31
@@ -949,12 +977,12 @@ fun NewReminderDialog(
                                 )
                             }
 
-                            // Range Pickers (Desde - Hasta)
+                            // Rango de fechas
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                // Fecha Desde
+                                // Desde
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = MaterialTheme.colorScheme.surface,
@@ -968,7 +996,6 @@ fun NewReminderDialog(
                                                     startYear = y
                                                     startMonth = m
                                                     startDay = d
-                                                    fullYearPreset = false
                                                 },
                                                 startYear,
                                                 startMonth,
@@ -976,30 +1003,22 @@ fun NewReminderDialog(
                                             ).show()
                                         }
                                 ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
                                         Text(
-                                            text = "Desde:",
+                                            text = "Desde",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                Icons.Default.DateRange,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = DateFormats.formatDate(startDateMillis),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
+                                        Text(
+                                            text = DateFormats.formatDate(startDateMillis),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
                                 }
 
-                                // Fecha Hasta
+                                // Hasta
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = MaterialTheme.colorScheme.surface,
@@ -1021,81 +1040,69 @@ fun NewReminderDialog(
                                             ).show()
                                         }
                                 ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
                                         Text(
-                                            text = "Hasta:",
+                                            text = "Hasta",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                Icons.Default.DateRange,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = DateFormats.formatDate(endDateMillis),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
+                                        Text(
+                                            text = DateFormats.formatDate(endDateMillis),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
                                 }
                             }
 
-                            // Alert Time Picker for recurring
+                            // Hora de alerta
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
                                     .clickable {
                                         TimePickerDialog(
                                             context,
-                                            { _, h, m ->
-                                                alertHour = h
-                                                alertMinute = m
+                                            { _, hour, minute ->
+                                                alertHour = hour
+                                                alertMinute = minute
                                             },
                                             alertHour,
                                             alertMinute,
-                                            false
+                                            true
                                         ).show()
-                                    },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    }
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.Alarm,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Hora de alarma cada mes:",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.SemiBold
+                                        text = "Hora de notificación: ${String.format("%02d:%02d", alertHour, alertMinute)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Text(
-                                        text = DateFormats.formatTime(calculatedAlertTimeMillis),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
+                                Text(
+                                    text = "Cambiar",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
 
-                            // Summary Box
+                            // Summary of generated payments
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -1165,10 +1172,13 @@ fun NewReminderDialog(
                                     parsedAmount,
                                     paymentCode,
                                     calculatedDueDateMillis,
-                                    calculatedAlertTimeMillis
+                                    calculatedAlertTimeMillis,
+                                    selectedIconId,
+                                    selectedColorHex
                                 )
                             } else {
                                 // Recurring
+                                commitDay()
                                 if (endDateMillis < startDateMillis) {
                                     Toast.makeText(context, "La fecha hasta debe ser posterior a la fecha desde", Toast.LENGTH_SHORT).show()
                                     return@Button
@@ -1178,18 +1188,19 @@ fun NewReminderDialog(
                                     return@Button
                                 }
 
-                                val finalRecurrenceDay = recurrenceDayText.toIntOrNull()?.coerceIn(1, 31) ?: recurrenceDayOfMonth
                                 onSaveRecurring(
                                     title,
                                     selectedCategory,
                                     selectedPlace,
                                     parsedAmount,
                                     paymentCode,
-                                    finalRecurrenceDay,
+                                    recurrenceDayOfMonth,
                                     startDateMillis,
                                     endDateMillis,
                                     alertHour,
-                                    alertMinute
+                                    alertMinute,
+                                    selectedIconId,
+                                    selectedColorHex
                                 )
                             }
                         },

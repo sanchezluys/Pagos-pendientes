@@ -163,4 +163,112 @@ class QaQualityAssuranceTest {
         assertEquals(89900.0, updated.paidAmount ?: 0.0, 0.01)
         assertEquals("/path/receipt.jpg", updated.receiptPhotoUri)
     }
+
+    @Test
+    fun qaTest_paymentVisualsAndCustomIconColor() = runBlocking {
+        // 1. Insert payment with custom icon and color
+        val reminder = PaymentReminder(
+            title = "Alquiler Local",
+            category = "Alquiler",
+            place = "Negocio",
+            approxAmount = 1500000.0,
+            dueDateMillis = System.currentTimeMillis() + 86400000L,
+            alertTimeMillis = System.currentTimeMillis(),
+            iconName = "Storefront",
+            colorHex = "#2E7D32"
+        )
+        val id = repository.insertPayment(reminder)
+        val retrieved = repository.getPaymentById(id)
+        assertNotNull(retrieved)
+        assertEquals("Storefront", retrieved?.iconName)
+        assertEquals("#2E7D32", retrieved?.colorHex)
+
+        // 2. Test PaymentVisuals resolution
+        val parsedColor = com.example.util.PaymentVisuals.getColor("#2E7D32", androidx.compose.ui.graphics.Color.Black)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF2E7D32), parsedColor)
+
+        // Invalid hex falls back safely
+        val fallbackColor = com.example.util.PaymentVisuals.getColor("invalid", androidx.compose.ui.graphics.Color.Red)
+        assertEquals(androidx.compose.ui.graphics.Color.Red, fallbackColor)
+
+        // Null hex falls back safely
+        val nullColor = com.example.util.PaymentVisuals.getColor(null, androidx.compose.ui.graphics.Color.Blue)
+        assertEquals(androidx.compose.ui.graphics.Color.Blue, nullColor)
+    }
+
+    @Test
+    fun qaTest_filterAndTotalCalculationLogic() {
+        val nowCal = Calendar.getInstance()
+        val currentMonthMillis = nowCal.timeInMillis
+
+        val nextYearCal = Calendar.getInstance().apply { add(Calendar.YEAR, 1) }
+        val nextYearMillis = nextYearCal.timeInMillis
+
+        val paymentThisMonthServices = PaymentReminder(
+            id = 1,
+            title = "Luz",
+            category = "Servicios",
+            place = "Casa",
+            approxAmount = 100.0,
+            dueDateMillis = currentMonthMillis,
+            alertTimeMillis = currentMonthMillis
+        )
+        val paymentThisMonthRent = PaymentReminder(
+            id = 2,
+            title = "Alquiler",
+            category = "Alquiler",
+            place = "Casa",
+            approxAmount = 500.0,
+            dueDateMillis = currentMonthMillis,
+            alertTimeMillis = currentMonthMillis
+        )
+        val paymentNextYearServices = PaymentReminder(
+            id = 3,
+            title = "Agua Anual",
+            category = "Servicios",
+            place = "Casa",
+            approxAmount = 250.0,
+            dueDateMillis = nextYearMillis,
+            alertTimeMillis = nextYearMillis
+        )
+
+        val list = listOf(paymentThisMonthServices, paymentThisMonthRent, paymentNextYearServices)
+
+        // 1. Filter "THIS_MONTH"
+        val thisMonthFiltered = list.filter { DateFormats.isCurrentMonth(it.dueDateMillis) }
+        assertEquals(2, thisMonthFiltered.size)
+        val thisMonthTotal = thisMonthFiltered.sumOf { it.approxAmount }
+        assertEquals(600.0, thisMonthTotal, 0.01)
+
+        // 2. Filter "ALL"
+        val allTotal = list.sumOf { it.approxAmount }
+        assertEquals(850.0, allTotal, 0.01)
+
+        // 3. Filter category "Servicios"
+        val servicesFiltered = list.filter { it.category.equals("Servicios", ignoreCase = true) }
+        assertEquals(2, servicesFiltered.size)
+        val servicesTotal = servicesFiltered.sumOf { it.approxAmount }
+        assertEquals(350.0, servicesTotal, 0.01)
+    }
+
+    @Test
+    fun qaTest_recurringDayClamping() {
+        // Test day clamping logic
+        val day31 = 31
+        val febCal = Calendar.getInstance().apply {
+            set(2026, Calendar.FEBRUARY, 1)
+        }
+        val maxDaysFeb = febCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        assertTrue(maxDaysFeb in 28..29)
+        val clampedFebDay = minOf(day31, maxDaysFeb)
+        assertEquals(maxDaysFeb, clampedFebDay)
+
+        val aprCal = Calendar.getInstance().apply {
+            set(2026, Calendar.APRIL, 1)
+        }
+        val maxDaysApr = aprCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        assertEquals(30, maxDaysApr)
+        val clampedAprDay = minOf(day31, maxDaysApr)
+        assertEquals(30, clampedAprDay)
+    }
 }

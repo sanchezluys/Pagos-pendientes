@@ -101,4 +101,11 @@ object DateFormats {
         return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
+
+    fun isCurrentMonth(timeMillis: Long): Boolean {
+        val target = Calendar.getInstance().apply { timeInMillis = timeMillis }
+        val now = Calendar.getInstance()
+        return target.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                target.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+    }
 }

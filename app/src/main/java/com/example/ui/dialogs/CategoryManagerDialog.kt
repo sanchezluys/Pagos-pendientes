@@ -17,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
@@ -29,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -66,8 +62,8 @@ fun CategoryManagerDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .padding(vertical = 20.dp)
@@ -86,13 +82,13 @@ fun CategoryManagerDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFEADDFF),
+                            color = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(38.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Category,
                                 contentDescription = null,
-                                tint = Color(0xFF21005D),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier
                                     .padding(8.dp)
                                     .size(20.dp)
@@ -104,12 +100,12 @@ fun CategoryManagerDialog(
                                 text = "Categorías de Pago",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1C1B1F)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "Activar, desactivar o borrar",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF79747E)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -121,7 +117,7 @@ fun CategoryManagerDialog(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Cerrar",
-                            tint = Color(0xFF49454F)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -150,23 +146,22 @@ fun CategoryManagerDialog(
                         onClick = {
                             val trimmed = newCategoryName.trim()
                             if (trimmed.isNotBlank()) {
-                                val alreadyExists = categories.any { it.name.trim().equals(trimmed, ignoreCase = true) }
-                                if (alreadyExists) {
-                                    Toast.makeText(context, "La categoría '$trimmed' ya existe", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    onAddCategory(trimmed)
-                                    Toast.makeText(context, "Categoría '$trimmed' agregada", Toast.LENGTH_SHORT).show()
-                                    newCategoryName = ""
-                                }
+                                onAddCategory(trimmed)
+                                newCategoryName = ""
+                                Toast.makeText(context, "Categoría agregada", Toast.LENGTH_SHORT).show()
                             }
                         },
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier
                             .height(56.dp)
                             .testTag("add_category_button")
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Agregar", tint = Color.White)
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Agregar",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
 
@@ -182,12 +177,12 @@ fun CategoryManagerDialog(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
-                        color = Color(0xFF49454F)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "${categories.count { it.isActive }} activas",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6750A4),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -203,10 +198,10 @@ fun CategoryManagerDialog(
                     items(categories, key = { it.id }) { cat ->
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = if (cat.isActive) Color(0xFFF7F2FA) else Color(0xFFECE6F0).copy(alpha = 0.6f),
+                            color = if (cat.isActive) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (cat.isActive) Color(0xFFEADDFF) else Color(0xFFCAC4D0).copy(alpha = 0.5f)
+                                color = if (cat.isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -223,19 +218,19 @@ fun CategoryManagerDialog(
                                             text = cat.name,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (cat.isActive) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (cat.isActive) Color(0xFF1C1B1F) else Color(0xFF79747E)
+                                            color = if (cat.isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         if (cat.isDefault) {
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Surface(
                                                 shape = RoundedCornerShape(4.dp),
-                                                color = Color(0xFFEADDFF).copy(alpha = 0.6f)
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
                                             ) {
                                                 Text(
                                                     text = "Defecto",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontSize = 9.sp,
-                                                    color = Color(0xFF21005D),
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                                 )
                                             }
@@ -248,7 +243,7 @@ fun CategoryManagerDialog(
                                         text = if (cat.isActive) "Disponible para recordatorios" else "Desactivada (oculta)",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 11.sp,
-                                        color = if (cat.isActive) Color(0xFF388E3C) else Color(0xFFB3261E)
+                                        color = if (cat.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                                     )
                                 }
 
@@ -264,12 +259,6 @@ fun CategoryManagerDialog(
                                             val stateText = if (isChecked) "activada" else "desactivada"
                                             Toast.makeText(context, "${cat.name} $stateText", Toast.LENGTH_SHORT).show()
                                         },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = Color.White,
-                                            checkedTrackColor = Color(0xFF6750A4),
-                                            uncheckedThumbColor = Color(0xFF79747E),
-                                            uncheckedTrackColor = Color(0xFFE7E0EC)
-                                        ),
                                         modifier = Modifier.testTag("toggle_category_${cat.id}")
                                     )
 
@@ -285,7 +274,7 @@ fun CategoryManagerDialog(
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Borrar ${cat.name}",
-                                            tint = Color(0xFFB3261E),
+                                            tint = MaterialTheme.colorScheme.error,
                                             modifier = Modifier.size(19.dp)
                                         )
                                     }
@@ -300,10 +289,10 @@ fun CategoryManagerDialog(
                 Button(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Listo", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Listo", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -314,7 +303,7 @@ fun CategoryManagerDialog(
         Dialog(onDismissRequest = { categoryToDelete = null }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth(0.88f)
                     .padding(16.dp)
@@ -324,13 +313,13 @@ fun CategoryManagerDialog(
                         text = "¿Borrar categoría?",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C1B1F)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Se eliminará la categoría '${cat.name}'. Los pagos existentes no se borrarán.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF49454F)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(18.dp))
                     Row(
@@ -340,10 +329,10 @@ fun CategoryManagerDialog(
                     ) {
                         Button(
                             onClick = { categoryToDelete = null },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE7E0EC)),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Cancelar", color = Color(0xFF1C1B1F))
+                            Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -352,10 +341,10 @@ fun CategoryManagerDialog(
                                 categoryToDelete = null
                                 Toast.makeText(context, "Categoría borrada", Toast.LENGTH_SHORT).show()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E)),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Borrar", color = Color.White)
+                            Text("Borrar", color = MaterialTheme.colorScheme.onError)
                         }
                     }
                 }

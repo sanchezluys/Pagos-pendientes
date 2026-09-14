@@ -11,12 +11,14 @@ import com.example.data.PaymentRepository
 import com.example.data.SettingsRepository
 import com.example.util.AppCurrency
 import com.example.util.AppSettings
+import com.example.util.DateFormats
 import com.example.util.PlaceDetails
 import com.example.util.ThousandsSeparator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -40,8 +42,16 @@ class PaymentsViewModel(
 
     val selectedPlace = MutableStateFlow("Todos") // "Todos", "Casa", "Negocio"
     val selectedTab = MutableStateFlow(StatusTab.PENDING)
-    val selectedCategory = MutableStateFlow<String?>(null)
+    val selectedFilter = MutableStateFlow("THIS_MONTH") // "THIS_MONTH" (default), "ALL", or category name
     val searchQuery = MutableStateFlow("")
+
+    val selectedCategory: StateFlow<String?> = selectedFilter
+        .map { if (it == "ALL" || it == "THIS_MONTH") null else it }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
     val appSettings: StateFlow<AppSettings> = settingsRepository.settings
 
@@ -69,14 +79,14 @@ class PaymentsViewModel(
             initialValue = emptyList()
         )
 
-    // Filtered list based on place, tab, category, search
+    // Filtered list based on place, tab, filter, search
     val filteredPayments: StateFlow<List<PaymentReminder>> = combine(
         allPayments,
         selectedPlace,
         selectedTab,
-        selectedCategory,
+        selectedFilter,
         searchQuery
-    ) { payments, place, tab, cat, query ->
+    ) { payments, place, tab, filter, query ->
         payments.filter { payment ->
             val matchesPlace = when (place) {
                 "Todos" -> true
@@ -86,14 +96,21 @@ class PaymentsViewModel(
                 StatusTab.PENDING -> !payment.isPaid
                 StatusTab.PAID -> payment.isPaid
             }
-            val matchesCategory = cat == null || payment.category == cat
+            val matchesFilter = when (filter) {
+                "ALL" -> true
+                "THIS_MONTH" -> {
+                    val dateToCheck = if (payment.isPaid) (payment.paidDateMillis ?: payment.dueDateMillis) else payment.dueDateMillis
+                    DateFormats.isCurrentMonth(dateToCheck)
+                }
+                else -> payment.category.equals(filter, ignoreCase = true)
+            }
             val matchesQuery = query.isBlank() ||
                 payment.title.contains(query, ignoreCase = true) ||
                 payment.paymentCode.contains(query, ignoreCase = true) ||
                 payment.category.contains(query, ignoreCase = true) ||
                 (payment.note?.contains(query, ignoreCase = true) == true)
 
-            matchesPlace && matchesTab && matchesCategory && matchesQuery
+            matchesPlace && matchesTab && matchesFilter && matchesQuery
         }
     }.stateIn(
         scope = viewModelScope,
@@ -101,16 +118,27 @@ class PaymentsViewModel(
         initialValue = emptyList()
     )
 
-    // Summary stats for Casa, Negocio, and Todos
+    // Summary stats for Casa, Negocio, and Todos respecting active filter
     val currentPlaceStats: StateFlow<PlaceStats> = combine(
         allPayments,
-        selectedPlace
-    ) { payments, place ->
+        selectedPlace,
+        selectedFilter
+    ) { payments, place, filter ->
         val relevant = payments.filter {
             if (place == "Todos") true else it.place.equals(place, ignoreCase = true)
         }
-        val pending = relevant.filter { !it.isPaid }
-        val paid = relevant.filter { it.isPaid }
+        val filtered = relevant.filter { payment ->
+            when (filter) {
+                "ALL" -> true
+                "THIS_MONTH" -> {
+                    val dateToCheck = if (payment.isPaid) (payment.paidDateMillis ?: payment.dueDateMillis) else payment.dueDateMillis
+                    DateFormats.isCurrentMonth(dateToCheck)
+                }
+                else -> payment.category.equals(filter, ignoreCase = true)
+            }
+        }
+        val pending = filtered.filter { !it.isPaid }
+        val paid = filtered.filter { it.isPaid }
         PlaceStats(
             pendingCount = pending.size,
             pendingTotalAmount = pending.sumOf { it.approxAmount },
@@ -137,8 +165,12 @@ class PaymentsViewModel(
         selectedTab.value = tab
     }
 
+    fun setFilter(filter: String) {
+        selectedFilter.value = filter
+    }
+
     fun setCategory(category: String?) {
-        selectedCategory.value = category
+        selectedFilter.value = category ?: "ALL"
     }
 
     fun setSearchQuery(query: String) {
@@ -153,7 +185,9 @@ class PaymentsViewModel(
         paymentCode: String,
         dueDateMillis: Long,
         alertTimeMillis: Long,
-        context: Context
+        context: Context,
+        iconName: String? = null,
+        colorHex: String? = null
     ) {
         viewModelScope.launch {
             val payment = PaymentReminder(
@@ -164,7 +198,9 @@ class PaymentsViewModel(
                 paymentCode = paymentCode.trim(),
                 dueDateMillis = dueDateMillis,
                 alertTimeMillis = alertTimeMillis,
-                isPaid = false
+                isPaid = false,
+                iconName = iconName,
+                colorHex = colorHex
             )
             val newId = repository.insertPayment(payment)
             val scheduledPayment = payment.copy(id = newId)
@@ -183,7 +219,9 @@ class PaymentsViewModel(
         endDateMillis: Long,
         alertHour: Int,
         alertMinute: Int,
-        context: Context
+        context: Context,
+        iconName: String? = null,
+        colorHex: String? = null
     ) {
         viewModelScope.launch {
             val startCal = Calendar.getInstance().apply {
@@ -231,7 +269,9 @@ class PaymentsViewModel(
                         paymentCode = paymentCode.trim(),
                         dueDateMillis = dueCal.timeInMillis,
                         alertTimeMillis = alertCal.timeInMillis,
-                        isPaid = false
+                        isPaid = false,
+                        iconName = iconName,
+                        colorHex = colorHex
                     )
 
                     val newId = repository.insertPayment(payment)

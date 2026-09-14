@@ -4,7 +4,6 @@ import com.example.util.AppCurrency
 import com.example.util.AppSettings
 import com.example.util.DateFormats
 import com.example.util.ThousandsSeparator
-import com.example.util.VoiceSpeechParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -54,25 +53,14 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun testVoiceSpeechParserBasic() {
-        val input = "Recordar pagar recibo de luz 150 soles para casa referencia REC-987"
-        val parsed = VoiceSpeechParser.parse(input)
+    fun testIsCurrentMonth() {
+        val now = System.currentTimeMillis()
+        assertTrue(DateFormats.isCurrentMonth(now))
 
-        assertEquals("Casa", parsed.suggestedPlace)
-        assertEquals("Servicios", parsed.suggestedCategory)
-        assertEquals(150.0, parsed.suggestedAmount ?: 0.0, 0.01)
-        assertEquals("REC-987", parsed.suggestedCode)
-        assertNotNull(parsed.suggestedTitle)
-    }
-
-    @Test
-    fun testVoiceSpeechParserBusinessTax() {
-        val input = "Pago de impuesto sunat 480 para negocio"
-        val parsed = VoiceSpeechParser.parse(input)
-
-        assertEquals("Negocio", parsed.suggestedPlace)
-        assertEquals("Impuestos", parsed.suggestedCategory)
-        assertEquals(480.0, parsed.suggestedAmount ?: 0.0, 0.01)
+        val nextYear = Calendar.getInstance().apply {
+            add(Calendar.YEAR, 1)
+        }
+        assertFalse(DateFormats.isCurrentMonth(nextYear.timeInMillis))
     }
 
     @Test

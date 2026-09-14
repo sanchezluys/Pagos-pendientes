@@ -75,22 +75,8 @@ import com.example.ui.theme.StatusPaid
 import com.example.ui.theme.StatusPending
 import com.example.util.AppSettings
 import com.example.util.DateFormats
+import com.example.util.PaymentVisuals
 import java.io.File
-
-private fun getCategoryIcon(category: String): ImageVector {
-    val lower = category.lowercase()
-    return when {
-        lower.contains("luz") || lower.contains("electric") -> Icons.Default.Bolt
-        lower.contains("agua") -> Icons.Default.WaterDrop
-        lower.contains("gas") -> Icons.Default.LocalFireDepartment
-        lower.contains("internet") || lower.contains("wifi") || lower.contains("celular") || lower.contains("tel") -> Icons.Default.Wifi
-        lower.contains("credito") || lower.contains("tarjeta") || lower.contains("prestamo") || lower.contains("banco") -> Icons.Default.CreditCard
-        lower.contains("alquiler") || lower.contains("renta") || lower.contains("casa") -> Icons.Default.Home
-        lower.contains("negocio") -> Icons.Default.Business
-        lower.contains("seguro") -> Icons.Default.Shield
-        else -> Icons.Default.ReceiptLong
-    }
-}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -106,6 +92,8 @@ fun PaymentCard(
     val context = LocalContext.current
     val isOverdue = !payment.isPaid && DateFormats.isOverdue(payment.dueDateMillis)
     val isToday = !payment.isPaid && DateFormats.isToday(payment.dueDateMillis)
+    val cardColor = PaymentVisuals.getColor(payment.colorHex, MaterialTheme.colorScheme.primary)
+    val cardIcon = PaymentVisuals.getIcon(payment.iconName, payment.category)
 
     Card(
         modifier = modifier
@@ -136,14 +124,14 @@ fun PaymentCard(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        color = cardColor.copy(alpha = 0.14f),
                         modifier = Modifier.size(46.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = getCategoryIcon(payment.category),
+                                imageVector = cardIcon,
                                 contentDescription = payment.category,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = cardColor,
                                 modifier = Modifier.size(24.dp)
                             )
                         }

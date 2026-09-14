@@ -116,7 +116,7 @@ fun MainPaymentsScreen(
     val appSettings by viewModel.appSettings.collectAsStateWithLifecycle()
     val selectedPlace by viewModel.selectedPlace.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
-    val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
     val activeCategories by viewModel.activeCategories.collectAsStateWithLifecycle()
@@ -184,12 +184,12 @@ fun MainPaymentsScreen(
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = (-0.5).sp,
-                                color = Color(0xFF1C1B1F)
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "Control centralizado",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF49454F)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -205,7 +205,7 @@ fun MainPaymentsScreen(
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = if (isSearchActive) "Cerrar búsqueda" else "Buscar",
-                            tint = Color(0xFF49454F)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -369,17 +369,24 @@ fun MainPaymentsScreen(
                         .fillMaxWidth()
                         .padding(20.dp)
                 ) {
+                    val filterDisplay = when (selectedFilter) {
+                        "THIS_MONTH" -> "ESTE MES"
+                        "ALL" -> "TODAS"
+                        else -> selectedFilter.uppercase()
+                    }
+                    val placeSuffix = if (selectedPlace == "Todos") "" else " • ${selectedPlace.uppercase()}"
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "TOTAL PENDIENTE • ${selectedPlace.uppercase()}",
+                            text = "TOTAL PENDIENTE • $filterDisplay$placeSuffix",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                         )
                         Icon(
                             imageVector = Icons.Default.AccountBalanceWallet,
@@ -516,13 +523,13 @@ fun MainPaymentsScreen(
             TabRow(
                 selectedTabIndex = if (selectedTab == StatusTab.PENDING) 0 else 1,
                 containerColor = Color.Transparent,
-                contentColor = Color(0xFF6750A4),
+                contentColor = MaterialTheme.colorScheme.primary,
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(
                             tabPositions[if (selectedTab == StatusTab.PENDING) 0 else 1]
                         ),
-                        color = Color(0xFF6750A4)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -534,7 +541,7 @@ fun MainPaymentsScreen(
                         Text(
                             text = "Pendientes (${stats.pendingCount})",
                             fontWeight = if (selectedTab == StatusTab.PENDING) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == StatusTab.PENDING) Color(0xFF6750A4) else Color(0xFF49454F)
+                            color = if (selectedTab == StatusTab.PENDING) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     modifier = Modifier.testTag("tab_pending")
@@ -546,14 +553,14 @@ fun MainPaymentsScreen(
                         Text(
                             text = "Historial Pagados (${stats.paidCount})",
                             fontWeight = if (selectedTab == StatusTab.PAID) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == StatusTab.PAID) Color(0xFF6750A4) else Color(0xFF49454F)
+                            color = if (selectedTab == StatusTab.PAID) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     modifier = Modifier.testTag("tab_paid")
                 )
             }
 
-            // Categories horizontal filter row
+            // Main Filter Row: Este mes (default), Todos, Categories
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -561,11 +568,26 @@ fun MainPaymentsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // 1. "Este mes" (default)
                 item {
                     FilterChip(
-                        selected = selectedCategory == null,
-                        onClick = { viewModel.setCategory(null) },
-                        label = { Text("Todas") },
+                        selected = selectedFilter == "THIS_MONTH",
+                        onClick = { viewModel.setFilter("THIS_MONTH") },
+                        label = { Text("Este mes") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.testTag("filter_chip_this_month")
+                    )
+                }
+
+                // 2. "Todos"
+                item {
+                    FilterChip(
+                        selected = selectedFilter == "ALL",
+                        onClick = { viewModel.setFilter("ALL") },
+                        label = { Text("Todos") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -574,11 +596,12 @@ fun MainPaymentsScreen(
                     )
                 }
 
+                // 3. Categories
                 items(activeCategories, key = { it.id }) { cat ->
                     FilterChip(
-                        selected = selectedCategory == cat.name,
+                        selected = selectedFilter == cat.name,
                         onClick = {
-                            viewModel.setCategory(if (selectedCategory == cat.name) null else cat.name)
+                            viewModel.setFilter(if (selectedFilter == cat.name) "THIS_MONTH" else cat.name)
                         },
                         label = { Text(cat.name) },
                         colors = FilterChipDefaults.filterChipColors(
@@ -596,7 +619,7 @@ fun MainPaymentsScreen(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.2.sp,
-                color = Color(0xFF49454F),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
             )
 
@@ -683,7 +706,7 @@ fun MainPaymentsScreen(
             initialPlace = if (selectedPlace == "Negocio") "Negocio" else "Casa",
             appSettings = appSettings,
             onDismiss = { showNewReminderDialog = false },
-            onSaveOccasional = { title, category, place, approxAmount, paymentCode, dueDateMillis, alertTimeMillis ->
+            onSaveOccasional = { title, category, place, approxAmount, paymentCode, dueDateMillis, alertTimeMillis, iconName, colorHex ->
                 viewModel.addPayment(
                     title = title,
                     category = category,
@@ -692,11 +715,13 @@ fun MainPaymentsScreen(
                     paymentCode = paymentCode,
                     dueDateMillis = dueDateMillis,
                     alertTimeMillis = alertTimeMillis,
-                    context = context
+                    context = context,
+                    iconName = iconName,
+                    colorHex = colorHex
                 )
                 showNewReminderDialog = false
             },
-            onSaveRecurring = { title, category, place, approxAmount, paymentCode, dayOfMonth, startDateMillis, endDateMillis, alertHour, alertMinute ->
+            onSaveRecurring = { title, category, place, approxAmount, paymentCode, dayOfMonth, startDateMillis, endDateMillis, alertHour, alertMinute, iconName, colorHex ->
                 viewModel.addRecurringPayments(
                     title = title,
                     category = category,
@@ -708,7 +733,9 @@ fun MainPaymentsScreen(
                     endDateMillis = endDateMillis,
                     alertHour = alertHour,
                     alertMinute = alertMinute,
-                    context = context
+                    context = context,
+                    iconName = iconName,
+                    colorHex = colorHex
                 )
                 showNewReminderDialog = false
             },
