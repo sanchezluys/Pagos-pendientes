@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Card
@@ -94,6 +96,8 @@ fun SettingsDialog(
     var negocioAddress by remember(currentSettings.negocioDetails.address) { mutableStateOf(currentSettings.negocioDetails.address) }
     var negocioData by remember(currentSettings.negocioDetails.additionalData) { mutableStateOf(currentSettings.negocioDetails.additionalData) }
     var negocioNotes by remember(currentSettings.negocioDetails.notes) { mutableStateOf(currentSettings.negocioDetails.notes) }
+
+    var countrySearchQuery by remember { mutableStateOf("") }
 
     // Auto-save helper on dismiss or edit
     val autoSaveAll = {
@@ -824,19 +828,72 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 5. SELECCIÓN DE MONEDA
-                Text(
-                    text = "SELECCIÓN DE MONEDA",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // 5. SELECCIÓN DE PAÍS Y MONEDA
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "PAÍS Y MONEDA",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Seleccionado: ${currentSettings.currency.flagEmoji} ${currentSettings.currency.countryName} (${currentSettings.currency.code})",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                OutlinedTextField(
+                    value = countrySearchQuery,
+                    onValueChange = { countrySearchQuery = it },
+                    placeholder = { Text("Buscar país o moneda (ej: México, Chile, Sol...)") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingIcon = {
+                        if (countrySearchQuery.isNotBlank()) {
+                            IconButton(onClick = { countrySearchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("search_country_currency_input")
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val filteredCurrencies = remember(countrySearchQuery) {
+                    if (countrySearchQuery.isBlank()) {
+                        AppCurrency.entries.toList()
+                    } else {
+                        AppCurrency.entries.filter {
+                            it.countryName.contains(countrySearchQuery, ignoreCase = true) ||
+                                it.displayName.contains(countrySearchQuery, ignoreCase = true) ||
+                                it.code.contains(countrySearchQuery, ignoreCase = true)
+                        }
+                    }
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppCurrency.values().forEach { currency ->
+                    filteredCurrencies.forEach { currency ->
                         val isSelected = currentSettings.currency == currency
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -849,16 +906,19 @@ fun SettingsDialog(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onCurrencySelected(currency) }
-                                .testTag("currency_option_${currency.code.lowercase()}")
+                                .testTag("currency_option_${currency.name.lowercase()}")
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
                                     RadioButton(
                                         selected = isSelected,
                                         onClick = { onCurrencySelected(currency) },
@@ -866,16 +926,21 @@ fun SettingsDialog(
                                             selectedColor = MaterialTheme.colorScheme.primary
                                         )
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = currency.flagEmoji,
+                                        fontSize = 24.sp,
+                                        modifier = Modifier.padding(end = 10.dp)
+                                    )
                                     Column {
                                         Text(
-                                            text = currency.displayName,
+                                            text = currency.countryName,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "Símbolo: ${currency.symbol}",
+                                            text = "${currency.displayName} • Símbolo: ${currency.symbol}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -895,6 +960,21 @@ fun SettingsDialog(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    if (filteredCurrencies.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No se encontraron países o monedas para \"$countrySearchQuery\"",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

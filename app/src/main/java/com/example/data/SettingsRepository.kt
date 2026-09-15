@@ -17,16 +17,29 @@ class SettingsRepository(context: Context) {
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
     private fun loadSettings(): AppSettings {
-        val currencyCode = prefs.getString(KEY_CURRENCY, AppCurrency.SOL.code) ?: AppCurrency.SOL.code
+        val savedCurrency = prefs.getString(KEY_CURRENCY, AppCurrency.SOL.name) ?: AppCurrency.SOL.name
         val separatorCode = prefs.getString(KEY_SEPARATOR, ThousandsSeparator.COMA.code) ?: ThousandsSeparator.COMA.code
 
-        val currency = when (currencyCode.uppercase()) {
-            "COL", "COP" -> AppCurrency.COP
-            "USD" -> AppCurrency.USD
-            "SOL" -> AppCurrency.SOL
-            else -> AppCurrency.values().find { it.code.equals(currencyCode, ignoreCase = true) } ?: AppCurrency.SOL
-        }
-        val separator = ThousandsSeparator.values().find { it.code.equals(separatorCode, ignoreCase = true) } ?: ThousandsSeparator.COMA
+        val currency = AppCurrency.entries.find { it.name.equals(savedCurrency, ignoreCase = true) }
+            ?: when (savedCurrency.uppercase()) {
+                "COL", "COP" -> AppCurrency.COP
+                "USD" -> AppCurrency.USD
+                "SOL" -> AppCurrency.SOL
+                "MXN" -> AppCurrency.MXN
+                "GTQ" -> AppCurrency.GTQ
+                "CRC" -> AppCurrency.CRC
+                "PAB" -> AppCurrency.PAB
+                "HNL" -> AppCurrency.HNL
+                "BRL" -> AppCurrency.BRL
+                "CLP" -> AppCurrency.CLP
+                "ARS" -> AppCurrency.ARS
+                "PYG" -> AppCurrency.PYG
+                "UYU" -> AppCurrency.UYU
+                "BOB" -> AppCurrency.BOB
+                "DOP" -> AppCurrency.DOP
+                else -> AppCurrency.entries.find { it.code.equals(savedCurrency, ignoreCase = true) } ?: AppCurrency.SOL
+            }
+        val separator = ThousandsSeparator.entries.find { it.code.equals(separatorCode, ignoreCase = true) } ?: ThousandsSeparator.COMA
 
         val casaDetails = PlaceDetails(
             alias = prefs.getString(KEY_CASA_ALIAS, "Casa") ?: "Casa",
@@ -84,7 +97,7 @@ class SettingsRepository(context: Context) {
     }
 
     fun updateCurrency(currency: AppCurrency) {
-        prefs.edit().putString(KEY_CURRENCY, currency.code).apply()
+        prefs.edit().putString(KEY_CURRENCY, currency.name).apply()
         _settings.value = _settings.value.copy(currency = currency)
     }
 

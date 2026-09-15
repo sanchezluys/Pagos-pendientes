@@ -271,4 +271,96 @@ class QaQualityAssuranceTest {
         val clampedAprDay = minOf(day31, maxDaysApr)
         assertEquals(30, clampedAprDay)
     }
+
+    @Test
+    fun qaTest_requestedCountriesAndCurrencies() {
+        val currencies = AppCurrency.entries
+
+        // Verify requested countries exist with flags and correct symbols
+        val mx = currencies.find { it.countryName.contains("México", ignoreCase = true) }
+        assertNotNull(mx)
+        assertEquals("MXN", mx?.code)
+        assertEquals("🇲🇽", mx?.flagEmoji)
+        assertEquals("$", mx?.symbol)
+
+        val gt = currencies.find { it.countryName.contains("Guatemala", ignoreCase = true) }
+        assertNotNull(gt)
+        assertEquals("GTQ", gt?.code)
+        assertEquals("🇬🇹", gt?.flagEmoji)
+        assertEquals("Q", gt?.symbol)
+
+        val sv = currencies.find { it.countryName.contains("El Salvador", ignoreCase = true) }
+        assertNotNull(sv)
+        assertEquals("🇸🇻", sv?.flagEmoji)
+        assertEquals("$", sv?.symbol)
+
+        val cr = currencies.find { it.countryName.contains("Costa Rica", ignoreCase = true) }
+        assertNotNull(cr)
+        assertEquals("CRC", cr?.code)
+        assertEquals("🇨🇷", cr?.flagEmoji)
+        assertEquals("₡", cr?.symbol)
+
+        val pa = currencies.find { it.countryName.contains("Panamá", ignoreCase = true) }
+        assertNotNull(pa)
+        assertEquals("🇵🇦", pa?.flagEmoji)
+
+        val hn = currencies.find { it.countryName.contains("Honduras", ignoreCase = true) }
+        assertNotNull(hn)
+        assertEquals("HNL", hn?.code)
+        assertEquals("🇭🇳", hn?.flagEmoji)
+        assertEquals("L", hn?.symbol)
+
+        val ec = currencies.find { it.countryName.contains("Ecuador", ignoreCase = true) }
+        assertNotNull(ec)
+        assertEquals("🇪🇨", ec?.flagEmoji)
+        assertEquals("$", ec?.symbol)
+
+        val br = currencies.find { it.countryName.contains("Brasil", ignoreCase = true) }
+        assertNotNull(br)
+        assertEquals("BRL", br?.code)
+        assertEquals("🇧🇷", br?.flagEmoji)
+        assertEquals("R$", br?.symbol)
+
+        val cl = currencies.find { it.countryName.contains("Chile", ignoreCase = true) }
+        assertNotNull(cl)
+        assertEquals("CLP", cl?.code)
+        assertEquals("🇨🇱", cl?.flagEmoji)
+        assertEquals("$", cl?.symbol)
+
+        val ar = currencies.find { it.countryName.contains("Argentina", ignoreCase = true) }
+        assertNotNull(ar)
+        assertEquals("ARS", ar?.code)
+        assertEquals("🇦🇷", ar?.flagEmoji)
+        assertEquals("$", ar?.symbol)
+
+        val py = currencies.find { it.countryName.contains("Paraguay", ignoreCase = true) }
+        assertNotNull(py)
+        assertEquals("PYG", py?.code)
+        assertEquals("🇵🇾", py?.flagEmoji)
+        assertEquals("₲", py?.symbol)
+
+        val uy = currencies.find { it.countryName.contains("Uruguay", ignoreCase = true) }
+        assertNotNull(uy)
+        assertEquals("UYU", uy?.code)
+        assertEquals("🇺🇾", uy?.flagEmoji)
+
+        val bo = currencies.find { it.countryName.contains("Bolivia", ignoreCase = true) }
+        assertNotNull(bo)
+        assertEquals("BOB", bo?.code)
+        assertEquals("🇧🇴", bo?.flagEmoji)
+        assertEquals("Bs.", bo?.symbol)
+
+        val doRep = currencies.find { it.countryName.contains("Dominicana", ignoreCase = true) }
+        assertNotNull(doRep)
+        assertEquals("DOP", doRep?.code)
+        assertEquals("🇩🇴", doRep?.flagEmoji)
+        assertEquals("RD$", doRep?.symbol)
+
+        // Verify formatting with symbol
+        val formattedBrazil = DateFormats.formatCurrency(150.0, br!!, ThousandsSeparator.COMA, true)
+        assertEquals("R$ 150.00", formattedBrazil)
+
+        val formattedCostaRica = DateFormats.formatCurrency(2500.0, cr!!, ThousandsSeparator.PUNTO, false)
+        assertEquals("₡ 2.500", formattedCostaRica)
+    }
 }
