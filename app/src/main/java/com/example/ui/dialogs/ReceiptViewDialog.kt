@@ -34,12 +34,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.PaymentReminder
 import com.example.ui.theme.StatusPaid
 import com.example.util.AppSettings
@@ -112,7 +114,10 @@ fun ReceiptViewDialog(
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         AsyncImage(
-                            model = File(payment.receiptPhotoUri),
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(File(payment.receiptPhotoUri))
+                                .crossfade(true)
+                                .build(),
                             contentDescription = "Comprobante de pago ampliado",
                             modifier = Modifier.fillMaxWidth(),
                             contentScale = ContentScale.Fit

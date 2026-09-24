@@ -5,11 +5,16 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
+import coil.request.CachePolicy
 import com.example.data.AppDatabase
 import com.example.data.PaymentRepository
 import com.example.data.SettingsRepository
 
-class PagosApplication : Application() {
+class PagosApplication : Application(), ImageLoaderFactory {
 
     lateinit var database: AppDatabase
         private set
@@ -26,6 +31,25 @@ class PagosApplication : Application() {
         repository = PaymentRepository(database.paymentDao())
         settingsRepository = SettingsRepository(this)
         createNotificationChannels()
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(50L * 1024 * 1024)
+                    .build()
+            }
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .crossfade(true)
+            .build()
     }
 
     private fun createNotificationChannels() {

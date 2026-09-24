@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import kotlinx.coroutines.launch
 import com.example.data.PaymentReminder
 import com.example.ui.theme.StatusPaid
 import com.example.util.DateFormats
@@ -100,16 +103,19 @@ fun RegisterPaymentDialog(
     var note by remember { mutableStateOf("") }
 
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Camera Capture Launcher
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && tempCameraUri != null) {
-            val savedPath = ImageUtils.saveUriToAppStorage(context, tempCameraUri!!)
-            if (savedPath != null) {
-                receiptPhotoPath = savedPath
-                Toast.makeText(context, "Foto de comprobante guardada", Toast.LENGTH_SHORT).show()
+            coroutineScope.launch {
+                val savedPath = ImageUtils.saveUriToAppStorage(context, tempCameraUri!!)
+                if (savedPath != null) {
+                    receiptPhotoPath = savedPath
+                    Toast.makeText(context, "Foto de comprobante guardada", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -119,10 +125,12 @@ fun RegisterPaymentDialog(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
-            val savedPath = ImageUtils.saveUriToAppStorage(context, uri)
-            if (savedPath != null) {
-                receiptPhotoPath = savedPath
-                Toast.makeText(context, "Comprobante cargado correctamente", Toast.LENGTH_SHORT).show()
+            coroutineScope.launch {
+                val savedPath = ImageUtils.saveUriToAppStorage(context, uri)
+                if (savedPath != null) {
+                    receiptPhotoPath = savedPath
+                    Toast.makeText(context, "Comprobante cargado correctamente", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -320,7 +328,10 @@ fun RegisterPaymentDialog(
                             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                     ) {
                         AsyncImage(
-                            model = File(receiptPhotoPath!!),
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(File(receiptPhotoPath!!))
+                                .crossfade(true)
+                                .build(),
                             contentDescription = "Comprobante de pago",
                             modifier = Modifier.matchParentSize(),
                             contentScale = ContentScale.Crop

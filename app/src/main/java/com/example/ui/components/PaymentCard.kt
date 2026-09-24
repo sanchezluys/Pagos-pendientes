@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.PaymentReminder
 import com.example.ui.theme.StatusOverdue
 import com.example.ui.theme.StatusPaid
@@ -316,7 +317,11 @@ fun PaymentCard(
                         .padding(6.dp)
                 ) {
                     AsyncImage(
-                        model = File(payment.receiptPhotoUri),
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(File(payment.receiptPhotoUri))
+                            .crossfade(true)
+                            .size(coil.size.Size(128, 128))
+                            .build(),
                         contentDescription = "Comprobante de pago",
                         modifier = Modifier
                             .size(44.dp)
