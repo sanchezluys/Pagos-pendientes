@@ -148,14 +148,16 @@ fun NewReminderDialog(
 
     // Reference today
     val todayCal = Calendar.getInstance()
+    val currentHourNow = todayCal.get(Calendar.HOUR_OF_DAY)
+    val initialAlertHour = if (currentHourNow in 8..21) (currentHourNow + 1) else 8
 
     // 1. OCCASIONAL PAYMENT STATE (Future date required)
     var dueYear by remember { mutableIntStateOf(todayCal.get(Calendar.YEAR)) }
     var dueMonth by remember { mutableIntStateOf(todayCal.get(Calendar.MONTH)) }
     var dueDay by remember { mutableIntStateOf(todayCal.get(Calendar.DAY_OF_MONTH)) }
 
-    // Alert Time (Default: 8:00 AM)
-    var alertHour by remember { mutableIntStateOf(8) }
+    // Alert Time (Smart default based on current hour)
+    var alertHour by remember { mutableIntStateOf(initialAlertHour) }
     var alertMinute by remember { mutableIntStateOf(0) }
 
     val calculatedDueDateMillis = remember(dueYear, dueMonth, dueDay) {
@@ -629,7 +631,7 @@ fun NewReminderDialog(
                     value = approxAmountText,
                     onValueChange = { approxAmountText = it },
                     label = { Text("Monto aprox. (${appSettings.currency.symbol})") },
-                    placeholder = { Text("0.00") },
+                    placeholder = { Text(DateFormats.formatNumber(1250.50, appSettings.thousandsSeparator, appSettings.showDecimals)) },
                     prefix = {
                         Text(
                             text = "${appSettings.currency.symbol} ",
@@ -783,6 +785,44 @@ fun NewReminderDialog(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Informative timing feedback badge
+                            val isDueToday = DateFormats.isToday(calculatedDueDateMillis)
+                            val isAlertTimePast = calculatedAlertTimeMillis <= System.currentTimeMillis()
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDueToday && isAlertTimePast) {
+                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                                } else {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Alarm,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = when {
+                                            isDueToday && isAlertTimePast -> "⏰ La hora ya pasó hoy. La alerta sonará de inmediato al guardar."
+                                            isDueToday -> "⏰ Sonará hoy a las ${DateFormats.formatTime(calculatedAlertTimeMillis)}"
+                                            else -> "⏰ Sonará el ${DateFormats.formatDate(calculatedDueDateMillis)} a las ${DateFormats.formatTime(calculatedAlertTimeMillis)}"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     }
@@ -1149,7 +1189,7 @@ fun NewReminderDialog(
                                 Toast.makeText(context, "Ingresa el nombre del pago", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            val parsedAmount = approxAmountText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                            val parsedAmount = DateFormats.parseAmount(approxAmountText, appSettings.thousandsSeparator) ?: 0.0
 
                             if (frequencyType == PaymentFrequencyType.OCCASIONAL) {
                                 // Validate future date

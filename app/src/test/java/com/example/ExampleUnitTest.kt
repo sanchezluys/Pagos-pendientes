@@ -90,5 +90,34 @@ class ExampleUnitTest {
         assertFalse(withoutDecimals.contains(",75"))
         assertTrue(withoutDecimals.contains("1,251") || withoutDecimals.contains("1.251"))
     }
+
+    @Test
+    fun testParseAmount() {
+        // PUNTO mode: dot is thousand separator, comma is decimal
+        assertEquals(1250.50, DateFormats.parseAmount("1.250,50", ThousandsSeparator.PUNTO)!!, 0.001)
+        assertEquals(1250.50, DateFormats.parseAmount("1250,50", ThousandsSeparator.PUNTO)!!, 0.001)
+        assertEquals(1250.0, DateFormats.parseAmount("1.250", ThousandsSeparator.PUNTO)!!, 0.001)
+        assertEquals(50000.0, DateFormats.parseAmount("50.000", ThousandsSeparator.PUNTO)!!, 0.001)
+
+        // COMA mode: comma is thousand separator, dot is decimal
+        assertEquals(1250.50, DateFormats.parseAmount("1,250.50", ThousandsSeparator.COMA)!!, 0.001)
+        assertEquals(1250.50, DateFormats.parseAmount("1250.50", ThousandsSeparator.COMA)!!, 0.001)
+        assertEquals(1250.0, DateFormats.parseAmount("1,250", ThousandsSeparator.COMA)!!, 0.001)
+        assertEquals(50000.0, DateFormats.parseAmount("50,000", ThousandsSeparator.COMA)!!, 0.001)
+
+        // DESACTIVADO mode
+        assertEquals(1250.50, DateFormats.parseAmount("1250.50", ThousandsSeparator.DESACTIVADO)!!, 0.001)
+        assertEquals(1250.50, DateFormats.parseAmount("1250,50", ThousandsSeparator.DESACTIVADO)!!, 0.001)
+    }
+
+    @Test
+    fun testFormatNumber() {
+        assertEquals("1.250,50", DateFormats.formatNumber(1250.50, ThousandsSeparator.PUNTO, true))
+        assertEquals("1.250", DateFormats.formatNumber(1250.50, ThousandsSeparator.PUNTO, false))
+        assertEquals("1,250.50", DateFormats.formatNumber(1250.50, ThousandsSeparator.COMA, true))
+        assertEquals("1,250", DateFormats.formatNumber(1250.50, ThousandsSeparator.COMA, false))
+        assertEquals("1250.50", DateFormats.formatNumber(1250.50, ThousandsSeparator.DESACTIVADO, true))
+        assertEquals("1250", DateFormats.formatNumber(1250.50, ThousandsSeparator.DESACTIVADO, false))
+    }
 }
 

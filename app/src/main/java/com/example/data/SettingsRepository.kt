@@ -16,6 +16,8 @@ class SettingsRepository(context: Context) {
     private val _settings = MutableStateFlow(loadSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
+    fun getSettings(): AppSettings = _settings.value
+
     private fun loadSettings(): AppSettings {
         val savedCurrency = prefs.getString(KEY_CURRENCY, AppCurrency.SOL.name) ?: AppCurrency.SOL.name
         val separatorCode = prefs.getString(KEY_SEPARATOR, ThousandsSeparator.COMA.code) ?: ThousandsSeparator.COMA.code

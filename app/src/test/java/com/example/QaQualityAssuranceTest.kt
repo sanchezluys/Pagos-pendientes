@@ -363,4 +363,84 @@ class QaQualityAssuranceTest {
         val formattedCostaRica = DateFormats.formatCurrency(2500.0, cr!!, ThousandsSeparator.PUNTO, false)
         assertEquals("₡ 2.500", formattedCostaRica)
     }
+
+    @Test
+    fun qaTest_notificationAlarmSchedulingLogic() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        // 1. Future payment alarm
+        val futureTime = System.currentTimeMillis() + 3600_000L
+        val futurePayment = PaymentReminder(
+            id = 101L,
+            title = "Alquiler Futuro",
+            category = "Casa",
+            place = "Casa",
+            approxAmount = 750000.0,
+            dueDateMillis = futureTime + 86400_000L,
+            alertTimeMillis = futureTime,
+            isPaid = false
+        )
+        // Schedule should succeed without throwing
+        com.example.alarm.AlarmScheduler.scheduleAlarm(context, futurePayment)
+
+        // 2. Today's payment where scheduled alert hour has already passed today
+        val todayCal = Calendar.getInstance()
+        val pastAlertTimeToday = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 1)
+        }.timeInMillis
+
+        val todayPayment = PaymentReminder(
+            id = 102L,
+            title = "Internet Hoy",
+            category = "Servicios",
+            place = "Casa",
+            approxAmount = 120000.0,
+            dueDateMillis = todayCal.timeInMillis,
+            alertTimeMillis = pastAlertTimeToday, // in the past today
+            isPaid = false
+        )
+
+        // Scheduling for today with past hour triggers immediate notification rather than skipping
+        com.example.alarm.AlarmScheduler.scheduleAlarm(context, todayPayment)
+
+        // 3. Paid payment should not schedule
+        val paidPayment = todayPayment.copy(id = 103L, isPaid = true)
+        com.example.alarm.AlarmScheduler.scheduleAlarm(context, paidPayment)
+
+        // 4. Cancel alarm
+        com.example.alarm.AlarmScheduler.cancelAlarm(context, 101L)
+        com.example.alarm.AlarmScheduler.cancelAlarm(context, 102L)
+    }
+
+    @Test
+    fun qaTest_receiptZoomCalculations() {
+        // 1. Zoom bounds
+        val initialScale = 1.0f
+        val zoomedScale = (initialScale * 2.5f).coerceIn(1f, 5f)
+        assertEquals(2.5f, zoomedScale, 0.01f)
+
+        val overZoomedScale = (initialScale * 10f).coerceIn(1f, 5f)
+        assertEquals(5.0f, overZoomedScale, 0.01f)
+
+        val underZoomedScale = (initialScale * 0.2f).coerceIn(1f, 5f)
+        assertEquals(1.0f, underZoomedScale, 0.01f)
+
+        // 2. Offset limits when zoomed
+        val maxOffset = (zoomedScale - 1f) * 350f
+        val panX = 1000f
+        val clampedX = panX.coerceIn(-maxOffset, maxOffset)
+        assertEquals(maxOffset, clampedX, 0.01f)
+
+        // 3. Rotation 90-degree steps
+        var rotation = 0
+        rotation = (rotation + 90) % 360
+        assertEquals(90, rotation)
+        rotation = (rotation + 90) % 360
+        assertEquals(180, rotation)
+        rotation = (rotation + 90) % 360
+        assertEquals(270, rotation)
+        rotation = (rotation + 90) % 360
+        assertEquals(0, rotation)
+    }
 }

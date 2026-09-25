@@ -65,6 +65,7 @@ import coil.request.ImageRequest
 import kotlinx.coroutines.launch
 import com.example.data.PaymentReminder
 import com.example.ui.theme.StatusPaid
+import com.example.util.AppSettings
 import com.example.util.DateFormats
 import com.example.util.ImageUtils
 import java.io.File
@@ -74,6 +75,7 @@ import java.util.Locale
 @Composable
 fun RegisterPaymentDialog(
     payment: PaymentReminder,
+    settings: AppSettings = AppSettings(),
     onDismiss: () -> Unit,
     onConfirmPayment: (
         paidAmount: Double,
@@ -85,7 +87,11 @@ fun RegisterPaymentDialog(
     val context = LocalContext.current
 
     var paidAmountText by remember {
-        mutableStateOf(if (payment.approxAmount > 0) String.format(Locale.US, "%.2f", payment.approxAmount) else "")
+        mutableStateOf(
+            if (payment.approxAmount > 0) {
+                DateFormats.formatNumber(payment.approxAmount, settings.thousandsSeparator, settings.showDecimals)
+            } else ""
+        )
     }
 
     val todayCal = Calendar.getInstance()
@@ -208,8 +214,15 @@ fun RegisterPaymentDialog(
                 OutlinedTextField(
                     value = paidAmountText,
                     onValueChange = { paidAmountText = it },
-                    label = { Text("Monto pagado") },
-                    placeholder = { Text("0.00") },
+                    label = { Text("Monto pagado (${settings.currency.symbol})") },
+                    placeholder = { Text(DateFormats.formatNumber(1250.50, settings.thousandsSeparator, settings.showDecimals)) },
+                    prefix = {
+                        Text(
+                            text = "${settings.currency.symbol} ",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
@@ -388,7 +401,7 @@ fun RegisterPaymentDialog(
 
                     Button(
                         onClick = {
-                            val parsedAmount = paidAmountText.replace(',', '.').toDoubleOrNull()
+                            val parsedAmount = DateFormats.parseAmount(paidAmountText, settings.thousandsSeparator)
                             if (parsedAmount == null || parsedAmount <= 0) {
                                 Toast.makeText(context, "Ingresa un monto válido", Toast.LENGTH_SHORT).show()
                                 return@Button

@@ -26,9 +26,8 @@ object DateFormats {
         return dateTimeFormat.format(Date(millis))
     }
 
-    fun formatCurrency(
+    fun formatNumber(
         amount: Double,
-        currency: AppCurrency = AppCurrency.SOL,
         separator: ThousandsSeparator = ThousandsSeparator.COMA,
         showDecimals: Boolean = true
     ): String {
@@ -56,11 +55,24 @@ object DateFormats {
                     isGroupingUsed = false
                 }
             }
-            "${currency.symbol} ${df.format(amount)}"
+            df.format(amount)
         } catch (e: Exception) {
             val fmt = if (showDecimals) "%.2f" else "%.0f"
-            "${currency.symbol} ${String.format(Locale.US, fmt, amount)}"
+            String.format(Locale.US, fmt, amount)
         }
+    }
+
+    fun formatNumber(amount: Double, settings: AppSettings): String {
+        return formatNumber(amount, settings.thousandsSeparator, settings.showDecimals)
+    }
+
+    fun formatCurrency(
+        amount: Double,
+        currency: AppCurrency = AppCurrency.SOL,
+        separator: ThousandsSeparator = ThousandsSeparator.COMA,
+        showDecimals: Boolean = true
+    ): String {
+        return "${currency.symbol} ${formatNumber(amount, separator, showDecimals)}"
     }
 
     fun formatCurrency(amount: Double, settings: AppSettings): String {
@@ -69,6 +81,67 @@ object DateFormats {
 
     fun formatCurrency(amount: Double): String {
         return formatCurrency(amount, AppCurrency.SOL, ThousandsSeparator.COMA, true)
+    }
+
+    /**
+     * Parses a formatted amount string into a Double, respecting the selected thousands separator.
+     * Supports various input formats such as:
+     * - PUNTO: "1.250,50", "1250,50", "1.250", "1250.50"
+     * - COMA: "1,250.50", "1250.50", "1,250", "1250,50"
+     * - DESACTIVADO: "1250.50", "1250,50"
+     */
+    fun parseAmount(input: String, separator: ThousandsSeparator = ThousandsSeparator.COMA): Double? {
+        val clean = input.trim()
+        if (clean.isBlank()) return null
+        return try {
+            when (separator) {
+                ThousandsSeparator.PUNTO -> {
+                    if (clean.contains('.') && clean.contains(',')) {
+                        // Standard PUNTO format: "1.250,50"
+                        clean.replace(".", "").replace(',', '.').toDoubleOrNull()
+                    } else if (clean.contains(',')) {
+                        // Decimal with comma: "1250,50"
+                        clean.replace(',', '.').toDoubleOrNull()
+                    } else if (clean.contains('.')) {
+                        val parts = clean.split('.')
+                        if (parts.size > 2) {
+                            clean.replace(".", "").toDoubleOrNull()
+                        } else if (parts.size == 2 && parts[1].length == 3 && parts[0].length in 1..3) {
+                            clean.replace(".", "").toDoubleOrNull()
+                        } else {
+                            clean.toDoubleOrNull() ?: clean.replace(".", "").toDoubleOrNull()
+                        }
+                    } else {
+                        clean.toDoubleOrNull()
+                    }
+                }
+                ThousandsSeparator.COMA -> {
+                    if (clean.contains(',') && clean.contains('.')) {
+                        // Standard COMA format: "1,250.50"
+                        clean.replace(",", "").toDoubleOrNull()
+                    } else if (clean.contains('.')) {
+                        // Decimal with dot: "1250.50"
+                        clean.toDoubleOrNull()
+                    } else if (clean.contains(',')) {
+                        val parts = clean.split(',')
+                        if (parts.size > 2) {
+                            clean.replace(",", "").toDoubleOrNull()
+                        } else if (parts.size == 2 && parts[1].length == 3 && parts[0].length in 1..3) {
+                            clean.replace(",", "").toDoubleOrNull()
+                        } else {
+                            clean.replace(',', '.').toDoubleOrNull()
+                        }
+                    } else {
+                        clean.toDoubleOrNull()
+                    }
+                }
+                ThousandsSeparator.DESACTIVADO -> {
+                    clean.replace(',', '.').toDoubleOrNull()
+                }
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /**

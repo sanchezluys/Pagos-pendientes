@@ -58,10 +58,20 @@ class PagosApplication : Application(), ImageLoaderFactory {
             val name = "Alertas de Pagos Pendientes"
             val descriptionText = "Notificaciones y alarmas para recordar pagos próximos a vencer"
             val importance = NotificationManager.IMPORTANCE_HIGH
+            val defaultSoundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .build()
+
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 500, 200, 500)
+                vibrationPattern = longArrayOf(0, 500, 250, 500)
+                setSound(defaultSoundUri, audioAttributes)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableLights(true)
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)

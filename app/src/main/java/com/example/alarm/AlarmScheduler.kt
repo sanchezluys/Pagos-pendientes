@@ -15,10 +15,23 @@ object AlarmScheduler {
     fun scheduleAlarm(context: Context, payment: PaymentReminder) {
         if (payment.isPaid) return
 
+        val now = System.currentTimeMillis()
         val triggerTime = payment.alertTimeMillis
-        if (triggerTime <= System.currentTimeMillis()) {
-            Log.d(TAG, "Trigger time $triggerTime is in the past, skipping schedule.")
-            return
+
+        // If the scheduled trigger time is in the past:
+        // If payment is due today or already due, schedule for 2 seconds from now
+        // so the user gets notified for today's payment rather than missing it completely!
+        val effectiveTriggerTime = if (triggerTime <= now) {
+            val isDueToday = com.example.util.DateFormats.isToday(payment.dueDateMillis)
+            if (isDueToday || payment.dueDateMillis < now) {
+                Log.d(TAG, "Trigger time $triggerTime is past for payment ${payment.id}, but payment is due today. Firing notification in 2 seconds.")
+                now + 2000L
+            } else {
+                Log.d(TAG, "Trigger time $triggerTime is in the past, skipping schedule.")
+                return
+            }
+        } else {
+            triggerTime
         }
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
@@ -44,34 +57,34 @@ object AlarmScheduler {
                 if (alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
-                        triggerTime,
+                        effectiveTriggerTime,
                         pendingIntent
                     )
                 } else {
                     alarmManager.setAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
-                        triggerTime,
+                        effectiveTriggerTime,
                         pendingIntent
                     )
                 }
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
-                    triggerTime,
+                    effectiveTriggerTime,
                     pendingIntent
                 )
             } else {
                 alarmManager.setExact(
                     AlarmManager.RTC_WAKEUP,
-                    triggerTime,
+                    effectiveTriggerTime,
                     pendingIntent
                 )
             }
-            Log.d(TAG, "Scheduled alarm for payment ${payment.id} at $triggerTime")
+            Log.d(TAG, "Scheduled alarm for payment ${payment.id} at $effectiveTriggerTime (diff=${effectiveTriggerTime - now}ms)")
         } catch (e: SecurityException) {
             Log.e(TAG, "Failed to schedule exact alarm: ${e.message}")
             try {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                alarmManager.set(AlarmManager.RTC_WAKEUP, effectiveTriggerTime, pendingIntent)
             } catch (ex: Exception) {
                 Log.e(TAG, "Fallback alarm failed: ${ex.message}")
             }

@@ -710,6 +710,7 @@ fun MainPaymentsScreen(
     if (paymentToRegister != null) {
         RegisterPaymentDialog(
             payment = paymentToRegister!!,
+            settings = appSettings,
             onDismiss = { paymentToRegister = null },
             onConfirmPayment = { paidAmount, paidDateMillis, receiptPhotoPath, note ->
                 viewModel.markAsPaid(
