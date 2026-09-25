@@ -180,6 +180,54 @@ fun ReceiptViewDialog(
                             )
                         }
 
+                        if (payment.approxAmount > 0) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Monto configurado:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = DateFormats.formatCurrency(payment.approxAmount, settings),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            if (payment.paidAmount != null) {
+                                val diff = payment.paidAmount - payment.approxAmount
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Diferencial:",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    val (diffLabel, diffColor) = when {
+                                        kotlin.math.abs(diff) < 0.005 -> "Exacto (${settings.currency.symbol} 0.00)" to StatusPaid
+                                        diff < 0 -> "-${DateFormats.formatCurrency(kotlin.math.abs(diff), settings)} (Menos de lo previsto)" to MaterialTheme.colorScheme.tertiary
+                                        else -> "+${DateFormats.formatCurrency(diff, settings)} (Más de lo previsto)" to MaterialTheme.colorScheme.primary
+                                    }
+                                    Text(
+                                        text = diffLabel,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = diffColor
+                                    )
+                                }
+                            }
+                        }
+
                         if (payment.paidDateMillis != null) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -179,6 +179,27 @@ fun PaymentCard(
                         fontWeight = FontWeight.Bold,
                         color = amountColor
                     )
+                    if (payment.isPaid && payment.paidAmount != null && payment.approxAmount > 0) {
+                        val diff = payment.paidAmount - payment.approxAmount
+                        if (kotlin.math.abs(diff) >= 0.005) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val isMore = diff > 0
+                            val diffSign = if (isMore) "+" else "-"
+                            val absDiff = kotlin.math.abs(diff)
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = if (isMore) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+                            ) {
+                                Text(
+                                    text = "Dif: $diffSign${DateFormats.formatCurrency(absDiff, settings)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isMore) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
                     if (payment.paymentCode.isNotBlank()) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(

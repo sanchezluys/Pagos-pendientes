@@ -443,4 +443,72 @@ class QaQualityAssuranceTest {
         rotation = (rotation + 90) % 360
         assertEquals(0, rotation)
     }
+
+    @Test
+    fun qaTest_liveAmountFormattingPunto() {
+        // Test progressive typing with PUNTO separator
+        var formatted = DateFormats.formatLiveAmountInput("", "1", ThousandsSeparator.PUNTO, true)
+        assertEquals("1", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "125", ThousandsSeparator.PUNTO, true)
+        assertEquals("125", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "1250", ThousandsSeparator.PUNTO, true)
+        assertEquals("1.250", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "1.2500", ThousandsSeparator.PUNTO, true)
+        assertEquals("12.500", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "12.500,", ThousandsSeparator.PUNTO, true)
+        assertEquals("12.500,", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "12.500,5", ThousandsSeparator.PUNTO, true)
+        assertEquals("12.500,5", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "12.500,50", ThousandsSeparator.PUNTO, true)
+        assertEquals("12.500,50", formatted)
+
+        // Parse verification
+        val parsed = DateFormats.parseAmount("12.500,50", ThousandsSeparator.PUNTO)
+        assertEquals(12500.50, parsed ?: 0.0, 0.001)
+
+        val parsedWithTrailingSep = DateFormats.parseAmount("12.500,", ThousandsSeparator.PUNTO)
+        assertEquals(12500.0, parsedWithTrailingSep ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun qaTest_liveAmountFormattingComa() {
+        // Test progressive typing with COMA separator
+        var formatted = DateFormats.formatLiveAmountInput("", "1250", ThousandsSeparator.COMA, true)
+        assertEquals("1,250", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "1,250.", ThousandsSeparator.COMA, true)
+        assertEquals("1,250.", formatted)
+
+        formatted = DateFormats.formatLiveAmountInput(formatted, "1,250.75", ThousandsSeparator.COMA, true)
+        assertEquals("1,250.75", formatted)
+
+        val parsed = DateFormats.parseAmount("1,250.75", ThousandsSeparator.COMA)
+        assertEquals(1250.75, parsed ?: 0.0, 0.001)
+
+        val parsedTrailing = DateFormats.parseAmount("1,250.", ThousandsSeparator.COMA)
+        assertEquals(1250.0, parsedTrailing ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun qaTest_paymentDifferentialCalculation() {
+        val configured = 1250.0
+
+        val exactPaid = 1250.0
+        val exactDiff = exactPaid - configured
+        assertEquals(0.0, exactDiff, 0.001)
+
+        val underPaid = 1200.0
+        val underDiff = underPaid - configured
+        assertEquals(-50.0, underDiff, 0.001)
+
+        val overPaid = 1315.50
+        val overDiff = overPaid - configured
+        assertEquals(65.50, overDiff, 0.001)
+    }
 }

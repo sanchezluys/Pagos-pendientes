@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventRepeat
@@ -68,6 +69,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -122,7 +124,7 @@ fun NewReminderDialog(
     var frequencyType by remember { mutableStateOf(PaymentFrequencyType.OCCASIONAL) }
 
     var title by remember { mutableStateOf("") }
-    var approxAmountText by remember { mutableStateOf("") }
+    var approxAmountValue by remember { mutableStateOf(TextFieldValue("")) }
     var paymentCode by remember { mutableStateOf("") }
 
     // Selected place respecting active places
@@ -628,8 +630,15 @@ fun NewReminderDialog(
 
                 // Amount (separate line)
                 OutlinedTextField(
-                    value = approxAmountText,
-                    onValueChange = { approxAmountText = it },
+                    value = approxAmountValue,
+                    onValueChange = { newVal ->
+                        approxAmountValue = DateFormats.formatLiveAmountTextFieldValue(
+                            previousValue = approxAmountValue,
+                            newValue = newVal,
+                            separator = appSettings.thousandsSeparator,
+                            showDecimals = appSettings.showDecimals
+                        )
+                    },
                     label = { Text("Monto aprox. (${appSettings.currency.symbol})") },
                     placeholder = { Text(DateFormats.formatNumber(1250.50, appSettings.thousandsSeparator, appSettings.showDecimals)) },
                     prefix = {
@@ -638,6 +647,23 @@ fun NewReminderDialog(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
+                    },
+                    trailingIcon = {
+                        if (approxAmountValue.text.isNotEmpty()) {
+                            IconButton(
+                                onClick = { approxAmountValue = TextFieldValue("") },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Limpiar monto",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    supportingText = {
+                        Text("Separador de miles: ${appSettings.thousandsSeparator.displayName}")
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -1189,7 +1215,7 @@ fun NewReminderDialog(
                                 Toast.makeText(context, "Ingresa el nombre del pago", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            val parsedAmount = DateFormats.parseAmount(approxAmountText, appSettings.thousandsSeparator) ?: 0.0
+                            val parsedAmount = DateFormats.parseAmount(approxAmountValue.text, appSettings.thousandsSeparator) ?: 0.0
 
                             if (frequencyType == PaymentFrequencyType.OCCASIONAL) {
                                 // Validate future date

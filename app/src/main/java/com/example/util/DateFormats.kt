@@ -1,5 +1,7 @@
 package com.example.util
 
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
@@ -86,12 +88,14 @@ object DateFormats {
     /**
      * Parses a formatted amount string into a Double, respecting the selected thousands separator.
      * Supports various input formats such as:
-     * - PUNTO: "1.250,50", "1250,50", "1.250", "1250.50"
-     * - COMA: "1,250.50", "1250.50", "1,250", "1250,50"
+     * - PUNTO: "1.250,50", "1250,50", "1.250", "1250.50", "1.250,"
+     * - COMA: "1,250.50", "1250.50", "1,250", "1250,50", "1,250."
      * - DESACTIVADO: "1250.50", "1250,50"
      */
     fun parseAmount(input: String, separator: ThousandsSeparator = ThousandsSeparator.COMA): Double? {
-        val clean = input.trim()
+        var clean = input.trim()
+        if (clean.isBlank()) return null
+        clean = clean.trimEnd('.', ',')
         if (clean.isBlank()) return null
         return try {
             when (separator) {
@@ -142,6 +146,209 @@ object DateFormats {
         } catch (e: Exception) {
             null
         }
+    }
+
+    /**
+     * Formats raw user input live as they type, applying thousands separators and decimal rules
+     * according to the user's settings.
+     */
+    fun formatLiveAmountInput(
+        previousFormatted: String,
+        newRawInput: String,
+        separator: ThousandsSeparator = ThousandsSeparator.COMA,
+        showDecimals: Boolean = true
+    ): String {
+        val trimmed = newRawInput.trim()
+        if (trimmed.isEmpty()) return ""
+
+        val groupingChar: Char? = when (separator) {
+            ThousandsSeparator.PUNTO -> '.'
+            ThousandsSeparator.COMA -> ','
+            ThousandsSeparator.DESACTIVADO -> null
+        }
+        val decimalChar: Char = when (separator) {
+            ThousandsSeparator.PUNTO -> ','
+            ThousandsSeparator.COMA, ThousandsSeparator.DESACTIVADO -> '.'
+        }
+
+        // Did the user delete a grouping separator? (e.g. from "1,250" to "1250")
+        var rawText = trimmed
+        if (groupingChar != null &&
+            previousFormatted.length == rawText.length + 1 &&
+            previousFormatted.count { it == groupingChar } > rawText.count { it == groupingChar } &&
+            previousFormatted.count { it.isDigit() } == rawText.count { it.isDigit() }
+        ) {
+            var mismatchIndex = 0
+            while (mismatchIndex < rawText.length && mismatchIndex < previousFormatted.length &&
+                rawText[mismatchIndex] == previousFormatted[mismatchIndex]
+            ) {
+                mismatchIndex++
+            }
+            if (mismatchIndex < previousFormatted.length && previousFormatted[mismatchIndex] == groupingChar) {
+                if (mismatchIndex > 0) {
+                    val sb = StringBuilder(rawText)
+                    sb.deleteCharAt(mismatchIndex - 1)
+                    rawText = sb.toString()
+                }
+            }
+        }
+
+        // Check if decimals are enabled and whether a decimal point was entered
+        val hasDecimal: Boolean
+        val intSubstring: String
+        val decSubstring: String
+
+        if (!showDecimals) {
+            hasDecimal = false
+            intSubstring = rawText
+            decSubstring = ""
+        } else {
+            when (separator) {
+                ThousandsSeparator.PUNTO -> {
+                    if (rawText.contains(',')) {
+                        hasDecimal = true
+                        val idx = rawText.indexOf(',')
+                        intSubstring = rawText.substring(0, idx)
+                        decSubstring = rawText.substring(idx + 1)
+                    } else if (rawText.endsWith('.')) {
+                        hasDecimal = true
+                        intSubstring = rawText.dropLast(1)
+                        decSubstring = ""
+                    } else if (rawText.contains('.') && !previousFormatted.contains('.')) {
+                        hasDecimal = true
+                        val idx = rawText.indexOf('.')
+                        intSubstring = rawText.substring(0, idx)
+                        decSubstring = rawText.substring(idx + 1)
+                    } else {
+                        hasDecimal = false
+                        intSubstring = rawText
+                        decSubstring = ""
+                    }
+                }
+                ThousandsSeparator.COMA -> {
+                    if (rawText.contains('.')) {
+                        hasDecimal = true
+                        val idx = rawText.indexOf('.')
+                        intSubstring = rawText.substring(0, idx)
+                        decSubstring = rawText.substring(idx + 1)
+                    } else if (rawText.endsWith(',')) {
+                        hasDecimal = true
+                        intSubstring = rawText.dropLast(1)
+                        decSubstring = ""
+                    } else if (rawText.contains(',') && !previousFormatted.contains(',')) {
+                        hasDecimal = true
+                        val idx = rawText.indexOf(',')
+                        intSubstring = rawText.substring(0, idx)
+                        decSubstring = rawText.substring(idx + 1)
+                    } else {
+                        hasDecimal = false
+                        intSubstring = rawText
+                        decSubstring = ""
+                    }
+                }
+                ThousandsSeparator.DESACTIVADO -> {
+                    if (rawText.contains('.')) {
+                        hasDecimal = true
+                        val idx = rawText.indexOf('.')
+                        intSubstring = rawText.substring(0, idx)
+                        decSubstring = rawText.substring(idx + 1)
+                    } else if (rawText.contains(',')) {
+                        hasDecimal = true
+                        val idx = rawText.indexOf(',')
+                        intSubstring = rawText.substring(0, idx)
+                        decSubstring = rawText.substring(idx + 1)
+                    } else {
+                        hasDecimal = false
+                        intSubstring = rawText
+                        decSubstring = ""
+                    }
+                }
+            }
+        }
+
+        // Clean integer digits
+        var intDigits = intSubstring.filter { it.isDigit() }
+        if (intDigits.length > 1) {
+            intDigits = intDigits.trimStart('0')
+            if (intDigits.isEmpty()) intDigits = "0"
+        }
+        if (intDigits.isEmpty() && hasDecimal) {
+            intDigits = "0"
+        }
+        intDigits = intDigits.take(12)
+
+        if (intDigits.isEmpty() && !hasDecimal) {
+            return ""
+        }
+
+        // Format integer part with thousands separator
+        val formattedInt = if (groupingChar != null && intDigits.isNotEmpty()) {
+            val sb = StringBuilder()
+            val len = intDigits.length
+            for (i in 0 until len) {
+                sb.append(intDigits[i])
+                val remaining = len - 1 - i
+                if (remaining > 0 && remaining % 3 == 0) {
+                    sb.append(groupingChar)
+                }
+            }
+            sb.toString()
+        } else {
+            intDigits
+        }
+
+        return if (hasDecimal) {
+            val decDigits = decSubstring.filter { it.isDigit() }.take(2)
+            "$formattedInt$decimalChar$decDigits"
+        } else {
+            formattedInt
+        }
+    }
+
+    /**
+     * Formats a TextFieldValue live as user types, preserving cursor position appropriately.
+     */
+    fun formatLiveAmountTextFieldValue(
+        previousValue: TextFieldValue,
+        newValue: TextFieldValue,
+        separator: ThousandsSeparator = ThousandsSeparator.COMA,
+        showDecimals: Boolean = true
+    ): TextFieldValue {
+        val formattedText = formatLiveAmountInput(
+            previousFormatted = previousValue.text,
+            newRawInput = newValue.text,
+            separator = separator,
+            showDecimals = showDecimals
+        )
+
+        val oldCursorPos = newValue.selection.end
+        val oldText = newValue.text
+        val newCursorPos = if (oldCursorPos >= oldText.length) {
+            formattedText.length
+        } else {
+            var count = 0
+            for (i in 0 until minOf(oldCursorPos, oldText.length)) {
+                val c = oldText[i]
+                if (c.isDigit() || c == '.' || c == ',') {
+                    count++
+                }
+            }
+            var newPos = 0
+            var matched = 0
+            while (newPos < formattedText.length && matched < count) {
+                val c = formattedText[newPos]
+                if (c.isDigit() || c == '.' || c == ',') {
+                    matched++
+                }
+                newPos++
+            }
+            newPos.coerceIn(0, formattedText.length)
+        }
+
+        return TextFieldValue(
+            text = formattedText,
+            selection = TextRange(newCursorPos)
+        )
     }
 
     /**
