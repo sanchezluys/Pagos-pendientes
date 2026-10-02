@@ -83,6 +83,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -156,7 +157,7 @@ fun MainPaymentsScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Mis Pagos",
+                            text = "Mis Pagos Pendientes",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = (-0.5).sp,
@@ -250,175 +251,159 @@ fun MainPaymentsScreen(
                 }
             }
 
+            // Tarjeta Principal Unificada con el Ámbito Activo (Altura optimizada y compacta)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    places.forEach { place ->
-                        val isSelected = selectedPlace.equals(place, ignoreCase = true)
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                            shadowElevation = if (isSelected) 1.5.dp else 0.dp,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(CircleShape)
-                                .clickable { viewModel.setPlace(place) }
-                                .testTag("place_tab_${place.lowercase()}")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (place == "Casa") {
-                                    Icon(
-                                        imageVector = Icons.Default.Home,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                } else if (place == "Negocio") {
-                                    Icon(
-                                        imageVector = Icons.Default.Business,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                }
-                                Text(
-                                    text = when (place) {
-                                        "Casa" -> if (appSettings.casaDetails.alias.isNotBlank()) appSettings.casaDetails.alias else "Casa"
-                                        "Negocio" -> if (appSettings.negocioDetails.alias.isNotBlank()) appSettings.negocioDetails.alias else "Negocio"
-                                        else -> "Todos"
-                                    },
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Clean Minimalism Total Pendiente Hero Banner
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(24.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .testTag("hero_total_card"),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shadowElevation = 1.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    val filterDisplay = when (selectedFilter) {
-                        "THIS_MONTH" -> "ESTE MES"
-                        "ALL" -> "TODAS"
-                        else -> selectedFilter.uppercase()
+                    // 1. Selector de Ámbito Activo integrado dentro de la cabecera de la tarjeta
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            places.forEach { place ->
+                                val isSelected = selectedPlace.equals(place, ignoreCase = true)
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                                    shadowElevation = if (isSelected) 1.dp else 0.dp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.setPlace(place) }
+                                        .testTag("place_tab_${place.lowercase()}")
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 5.dp, horizontal = 4.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val (icon, label) = when (place) {
+                                            "Casa" -> Icons.Default.Home to (appSettings.casaDetails.alias.ifBlank { "Casa" })
+                                            "Negocio" -> Icons.Default.Business to (appSettings.negocioDetails.alias.ifBlank { "Negocio" })
+                                            else -> Icons.Default.AccountBalanceWallet to "Todos"
+                                        }
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
-                    val placeSuffix = if (selectedPlace == "Todos") "" else " • ${selectedPlace.uppercase()}"
 
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 2. Fila Principal: Total Pendiente a la izquierda y badges resumidos a la derecha
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "TOTAL PENDIENTE • $filterDisplay$placeSuffix",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                        )
-                        Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = DateFormats.formatCurrency(stats.pendingTotalAmount, appSettings),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
-                        ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            val filterDisplay = when (selectedFilter) {
+                                "THIS_MONTH" -> "ESTE MES"
+                                "ALL" -> "TODAS"
+                                else -> selectedFilter.uppercase()
+                            }
                             Text(
-                                text = "${stats.pendingCount} pagos próximos",
+                                text = "TOTAL PENDIENTE • $filterDisplay",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.8.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = DateFormats.formatCurrency(stats.pendingTotalAmount, appSettings),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
 
-                        if (stats.paidCount > 0) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                             ) {
                                 Text(
-                                    text = "${stats.paidCount} pagados",
+                                    text = "${stats.pendingCount} por pagar",
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
+                            }
+
+                            if (stats.paidCount > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = StatusPaid.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "${stats.paidCount} pagados",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StatusPaid,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // Place Information Badge (Dirección, Datos, Notas)
+                    // 3. Información Completa del Ámbito Activo (Dirección, Datos, Notas en formato compacto)
                     val activePlaceInfo = when (selectedPlace) {
                         "Casa" -> appSettings.casaDetails
                         "Negocio" -> appSettings.negocioDetails
                         else -> null
                     }
+
                     if (activePlaceInfo != null && (activePlaceInfo.address.isNotBlank() || activePlaceInfo.additionalData.isNotBlank() || activePlaceInfo.notes.isNotBlank())) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 if (activePlaceInfo.address.isNotBlank()) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -426,49 +411,40 @@ fun MainPaymentsScreen(
                                             imageVector = Icons.Default.LocationOn,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(15.dp)
+                                            modifier = Modifier.size(13.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = activePlaceInfo.address,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Medium,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
-                                if (activePlaceInfo.additionalData.isNotBlank()) {
+
+                                val extraDetails = listOfNotNull(
+                                    activePlaceInfo.additionalData.takeIf { it.isNotBlank() },
+                                    activePlaceInfo.notes.takeIf { it.isNotBlank() }
+                                ).joinToString(" • ")
+
+                                if (extraDetails.isNotBlank()) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             imageVector = Icons.Default.Info,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(15.dp)
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(12.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = activePlaceInfo.additionalData,
+                                            text = extraDetails,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 2
-                                        )
-                                    }
-                                }
-                                if (activePlaceInfo.notes.isNotBlank()) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Notes,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = activePlaceInfo.notes,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 2
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }

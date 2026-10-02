@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- Soporte borde a borde completo en pantallas con recorte (cutout/notch) sin APIs ni parámetros obsoletos -->
+        <!-- Compatibilidad borde a borde para Android 14 y versiones anteriores (API < 35) -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>

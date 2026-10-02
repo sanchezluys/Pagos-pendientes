@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Pagos Pendientes"
+rootProject.name = "Mis Pagos Pendientes"
 
 include(":app")
