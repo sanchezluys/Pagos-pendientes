@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
+                viewModel.syncAllAlarms(context)
             }
 
             MyApplicationTheme(darkTheme = appSettings.isDarkTheme) {

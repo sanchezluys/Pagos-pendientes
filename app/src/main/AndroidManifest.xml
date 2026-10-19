@@ -51,6 +51,8 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="com.example.ACTION_PAYMENT_ALARM" />
             </intent-filter>
         </receiver>
     </application>

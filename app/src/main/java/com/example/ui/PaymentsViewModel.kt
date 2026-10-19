@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -275,9 +276,7 @@ class PaymentsViewModel(
                     )
 
                     val newId = repository.insertPayment(payment)
-                    if (alertCal.timeInMillis > System.currentTimeMillis()) {
-                        AlarmScheduler.scheduleAlarm(context, payment.copy(id = newId))
-                    }
+                    AlarmScheduler.scheduleAlarm(context, payment.copy(id = newId))
                 }
 
                 // Move to next month
@@ -315,9 +314,7 @@ class PaymentsViewModel(
                 paidDateMillis = null
             )
             repository.updatePayment(updated)
-            if (updated.alertTimeMillis > System.currentTimeMillis()) {
-                AlarmScheduler.scheduleAlarm(context, updated)
-            }
+            AlarmScheduler.scheduleAlarm(context, updated)
         }
     }
 
@@ -390,6 +387,21 @@ class PaymentsViewModel(
 
     fun updateDarkTheme(isDark: Boolean) {
         settingsRepository.updateDarkTheme(isDark)
+    }
+
+    fun syncAllAlarms(context: Context) {
+        viewModelScope.launch {
+            try {
+                val list = repository.allPayments.first()
+                val now = System.currentTimeMillis()
+                list.filter { !it.isPaid && (it.alertTimeMillis > now || DateFormats.isToday(it.dueDateMillis)) }
+                    .forEach { payment ->
+                        AlarmScheduler.scheduleAlarm(context, payment)
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("PaymentsViewModel", "Failed to sync alarms", e)
+            }
+        }
     }
 }
 

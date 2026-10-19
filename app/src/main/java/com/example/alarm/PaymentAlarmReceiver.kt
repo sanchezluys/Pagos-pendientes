@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class PaymentAlarmReceiver : BroadcastReceiver() {
 
@@ -25,7 +26,7 @@ class PaymentAlarmReceiver : BroadcastReceiver() {
         val action = intent.action
         Log.d(TAG, "PaymentAlarmReceiver received broadcast with action: $action")
 
-        if (action == Intent.ACTION_BOOT_COMPLETED) {
+        if (action == Intent.ACTION_BOOT_COMPLETED || action == Intent.ACTION_MY_PACKAGE_REPLACED) {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -53,7 +54,10 @@ class PaymentAlarmReceiver : BroadcastReceiver() {
         }
 
         val paymentId = intent.getLongExtra(EXTRA_PAYMENT_ID, -1L)
-        if (paymentId == -1L) return
+        if (paymentId == -1L) {
+            Log.w(TAG, "Received alarm broadcast without valid EXTRA_PAYMENT_ID")
+            return
+        }
 
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "Recordatorio de Pago"
         val amount = intent.getDoubleExtra(EXTRA_AMOUNT, 0.0)
@@ -64,18 +68,48 @@ class PaymentAlarmReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val db = AppDatabase.getInstance(context)
-                val payment = db.paymentDao().getPaymentById(paymentId)
-                if (payment == null || !payment.isPaid) {
+                var isAlreadyPaid = false
+                try {
+                    val db = AppDatabase.getInstance(context)
+                    val payment = withTimeoutOrNull(2000L) {
+                        db.paymentDao().getPaymentById(paymentId)
+                    }
+                    if (payment != null && payment.isPaid) {
+                        isAlreadyPaid = true
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not check db for payment $paymentId, proceeding to notify: ${e.message}")
+                }
+
+                if (!isAlreadyPaid) {
                     showNotification(context, paymentId, title, amount, code, place, category)
                 } else {
-                    Log.d(TAG, "Payment $paymentId is already paid, skipping notification.")
+                    Log.d(TAG, "Payment $paymentId is marked as paid, skipping notification.")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error processing alarm in background", e)
+                Log.e(TAG, "Error processing alarm, showing notification as safe fallback", e)
+                showNotification(context, paymentId, title, amount, code, place, category)
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    private suspend fun rescheduleAllAlarms(context: Context) {
+        try {
+            val db = AppDatabase.getInstance(context)
+            val payments = db.paymentDao().getAllPayments().firstOrNull() ?: emptyList()
+            val now = System.currentTimeMillis()
+            var count = 0
+            payments.filter { !it.isPaid }.forEach { payment ->
+                if (payment.alertTimeMillis > now || DateFormats.isToday(payment.dueDateMillis)) {
+                    AlarmScheduler.scheduleAlarm(context, payment)
+                    count++
+                }
+            }
+            Log.d(TAG, "Rescheduled $count pending payment alarms after boot/update.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed rescheduling alarms", e)
         }
     }
 
@@ -126,7 +160,7 @@ class PaymentAlarmReceiver : BroadcastReceiver() {
                     .bigText("$contentText\nCategoría: $category\n¡No olvides registrar tu comprobante una vez realizado el pago!")
             )
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(defaultSoundUri)
             .setVibrate(longArrayOf(0, 500, 250, 500))
@@ -138,22 +172,6 @@ class PaymentAlarmReceiver : BroadcastReceiver() {
         Log.d(TAG, "Notification delivered for payment $paymentId ($title)")
     }
 
-    private fun rescheduleAllAlarms(context: Context) {
-        val db = AppDatabase.getInstance(context)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val payments = db.paymentDao().getAllPayments().firstOrNull() ?: emptyList()
-                val now = System.currentTimeMillis()
-                payments.filter { !it.isPaid && it.alertTimeMillis > now }.forEach {
-                    AlarmScheduler.scheduleAlarm(context, it)
-                }
-                Log.d(TAG, "Rescheduled ${payments.size} payments after reboot.")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed rescheduling alarms", e)
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "PaymentAlarmReceiver"
         const val EXTRA_PAYMENT_ID = "extra_payment_id"
@@ -162,6 +180,7 @@ class PaymentAlarmReceiver : BroadcastReceiver() {
         const val EXTRA_CODE = "extra_code"
         const val EXTRA_PLACE = "extra_place"
         const val EXTRA_CATEGORY = "extra_category"
+        const val ACTION_PAYMENT_ALARM = "com.example.ACTION_PAYMENT_ALARM"
         const val ACTION_TEST_NOTIFICATION = "com.example.ACTION_TEST_NOTIFICATION"
 
         fun sendTestNotification(context: Context) {
