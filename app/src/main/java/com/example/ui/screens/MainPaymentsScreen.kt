@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -98,6 +99,7 @@ import com.example.ui.dialogs.CategoryManagerDialog
 import com.example.ui.dialogs.NewReminderDialog
 import com.example.ui.dialogs.ReceiptViewDialog
 import com.example.ui.dialogs.RegisterPaymentDialog
+import com.example.ui.dialogs.ReplicatePaymentDialog
 import com.example.ui.dialogs.SettingsDialog
 import com.example.ui.theme.StatusPaid
 import com.example.ui.theme.StatusPending
@@ -128,6 +130,7 @@ fun MainPaymentsScreen(
     var paymentToRegister by remember { mutableStateOf<PaymentReminder?>(null) }
     var paymentToViewReceipt by remember { mutableStateOf<PaymentReminder?>(null) }
     var paymentToDelete by remember { mutableStateOf<PaymentReminder?>(null) }
+    var paymentToReplicate by remember { mutableStateOf<PaymentReminder?>(null) }
 
     // Runtime Permission Request for Notifications & Camera
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -628,7 +631,8 @@ fun MainPaymentsScreen(
                             onRegisterPaymentClick = { paymentToRegister = it },
                             onViewReceiptClick = { paymentToViewReceipt = it },
                             onDeleteClick = { paymentToDelete = it },
-                            onMarkPendingClick = { viewModel.markAsPending(it, context) }
+                            onMarkPendingClick = { viewModel.markAsPending(it, context) },
+                            onReplicateClick = { paymentToReplicate = it }
                         )
                     }
                 }
@@ -763,6 +767,36 @@ fun MainPaymentsScreen(
                 TextButton(onClick = { paymentToDelete = null }) {
                     Text("Cancelar")
                 }
+            }
+        )
+    }
+
+    // Replicate Payment Dialog
+    if (paymentToReplicate != null) {
+        ReplicatePaymentDialog(
+            payment = paymentToReplicate!!,
+            appSettings = appSettings,
+            onDismiss = { paymentToReplicate = null },
+            onConfirmReplication = { newTitle, newAmount, dayOfMonth, targetYear, alertHour, alertMinute ->
+                val model = paymentToReplicate!!
+                paymentToReplicate = null
+                viewModel.replicatePaymentForNextYear(
+                    modelPayment = model,
+                    newTitle = newTitle,
+                    newAmount = newAmount,
+                    dayOfMonth = dayOfMonth,
+                    targetYear = targetYear,
+                    alertHour = alertHour,
+                    alertMinute = alertMinute,
+                    context = context,
+                    onComplete = { count ->
+                        Toast.makeText(
+                            context,
+                            "Se generaron $count pagos para el año $targetYear",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
             }
         )
     }

@@ -119,5 +119,41 @@ class ExampleUnitTest {
         assertEquals("1250.50", DateFormats.formatNumber(1250.50, ThousandsSeparator.DESACTIVADO, true))
         assertEquals("1250", DateFormats.formatNumber(1250.50, ThousandsSeparator.DESACTIVADO, false))
     }
+
+    @Test
+    fun testReplicationDateMath() {
+        val targetYear = 2027
+        val targetDayOfMonth = 31
+
+        val generatedDates = mutableListOf<Calendar>()
+        for (month in 0..11) {
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.YEAR, targetYear)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, 1)
+            }
+            val maxDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val day = minOf(targetDayOfMonth, maxDay)
+
+            val dueCal = Calendar.getInstance().apply {
+                set(targetYear, month, day, 23, 59, 59)
+                set(Calendar.MILLISECOND, 999)
+            }
+            generatedDates.add(dueCal)
+        }
+
+        assertEquals(12, generatedDates.size)
+
+        // January: 31
+        assertEquals(31, generatedDates[0].get(Calendar.DAY_OF_MONTH))
+        // February: 28 (2027 is not a leap year)
+        assertEquals(28, generatedDates[1].get(Calendar.DAY_OF_MONTH))
+        // April: 30
+        assertEquals(30, generatedDates[3].get(Calendar.DAY_OF_MONTH))
+        // December: 31
+        assertEquals(31, generatedDates[11].get(Calendar.DAY_OF_MONTH))
+        // Year check
+        assertTrue(generatedDates.all { it.get(Calendar.YEAR) == 2027 })
+    }
 }
 

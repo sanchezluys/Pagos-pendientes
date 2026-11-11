@@ -285,6 +285,59 @@ class PaymentsViewModel(
         }
     }
 
+    fun replicatePaymentForNextYear(
+        modelPayment: PaymentReminder,
+        newTitle: String,
+        newAmount: Double,
+        dayOfMonth: Int,
+        targetYear: Int,
+        alertHour: Int,
+        alertMinute: Int,
+        context: Context,
+        onComplete: (Int) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            var createdCount = 0
+            for (month in 0..11) {
+                val cal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, targetYear)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }
+                val maxDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+                val targetDay = minOf(dayOfMonth, maxDay)
+
+                val dueCal = Calendar.getInstance().apply {
+                    set(targetYear, month, targetDay, 23, 59, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }
+                val alertCal = Calendar.getInstance().apply {
+                    set(targetYear, month, targetDay, alertHour, alertMinute, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                val replicated = PaymentReminder(
+                    title = newTitle.trim(),
+                    category = modelPayment.category.trim(),
+                    place = modelPayment.place.trim(),
+                    approxAmount = newAmount,
+                    paymentCode = modelPayment.paymentCode.trim(),
+                    dueDateMillis = dueCal.timeInMillis,
+                    alertTimeMillis = alertCal.timeInMillis,
+                    isPaid = false,
+                    note = modelPayment.note,
+                    iconName = modelPayment.iconName,
+                    colorHex = modelPayment.colorHex
+                )
+
+                val newId = repository.insertPayment(replicated)
+                AlarmScheduler.scheduleAlarm(context, replicated.copy(id = newId))
+                createdCount++
+            }
+            onComplete(createdCount)
+        }
+    }
+
     fun markAsPaid(
         payment: PaymentReminder,
         paidAmount: Double,

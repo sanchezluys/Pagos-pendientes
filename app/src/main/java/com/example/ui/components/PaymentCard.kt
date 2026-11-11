@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,6 +89,7 @@ fun PaymentCard(
     onViewReceiptClick: (PaymentReminder) -> Unit,
     onDeleteClick: (PaymentReminder) -> Unit,
     onMarkPendingClick: (PaymentReminder) -> Unit,
+    onReplicateClick: ((PaymentReminder) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -403,28 +405,56 @@ fun PaymentCard(
                     }
                 }
 
-                // Primary Action Button
+                // Primary & Secondary Action Buttons
                 if (!payment.isPaid) {
-                    Button(
-                        onClick = { onRegisterPaymentClick(payment) },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.testTag("register_payment_button_${payment.id}")
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Paid,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Registrar Pago",
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
+                        if (onReplicateClick != null) {
+                            OutlinedButton(
+                                onClick = { onReplicateClick(payment) },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("replicate_payment_button_${payment.id}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Replicar pago",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { onRegisterPaymentClick(payment) },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.testTag("register_payment_button_${payment.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Paid,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Registrar Pago",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
                     }
                 } else if (!payment.receiptPhotoUri.isNullOrBlank()) {
                     OutlinedButton(
